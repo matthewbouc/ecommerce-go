@@ -2,18 +2,25 @@ package handlers
 
 import (
 	"ecommerce/internal/api/rest"
+	"ecommerce/internal/dto"
+	"ecommerce/internal/service"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 type UserHandler struct {
 	// UserService
+	service service.UserService
 }
 
 func SetupUserRoutes(router *rest.Router) {
 
 	app := router.App
-	handler := UserHandler{}
+
+	serv := service.UserService{}
+	handler := UserHandler{
+		service: serv,
+	}
 
 	// public endpoints
 	app.Post("/register", handler.Register)
@@ -34,8 +41,28 @@ func SetupUserRoutes(router *rest.Router) {
 }
 
 func (h *UserHandler) Register(ctx fiber.Ctx) error {
+
+	user := dto.RegisterDTO{}
+
+	// TODO: add some validation here?
+	err := ctx.Bind().Body(&user)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Please provide valid inputs",
+		})
+	}
+
+	token, err := h.service.Register(user)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "error on sign up",
+			"error":   err.Error(),
+		})
+	}
+
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "register success",
+		"token":   token,
 	})
 }
 func (h *UserHandler) Login(ctx fiber.Ctx) error {
