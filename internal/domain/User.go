@@ -9,9 +9,9 @@ import (
 type User struct {
 	Id               uint      `json:"id" gorm:"primaryKey"`
 	Uuid             uuid.UUID `json:"uuid"`
-	FirstName        string    `json:"first_name"`
-	LastName         string    `json:"last_name"`
-	Phone            string    `json:"phone"`
+	FirstName        *string   `json:"first_name"`
+	LastName         *string   `json:"last_name"`
+	Phone            *string   `json:"phone"`
 	Email            string    `json:"email" gorm:"index;unique;not null"`
 	Password         string    `json:"password"`
 	VerificationCode string    `json:"verification_code"`

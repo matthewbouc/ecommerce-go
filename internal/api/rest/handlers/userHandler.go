@@ -3,6 +3,7 @@ package handlers
 import (
 	"ecommerce/internal/api/rest"
 	"ecommerce/internal/dto"
+	"ecommerce/internal/repository"
 	"ecommerce/internal/service"
 
 	"github.com/gofiber/fiber/v3"
@@ -17,7 +18,9 @@ func SetupUserRoutes(router *rest.Router) {
 
 	app := router.App
 
-	serv := service.UserService{}
+	serv := service.UserService{
+		UserRepository: repository.NewUserRepository(router.DB),
+	}
 	handler := UserHandler{
 		service: serv,
 	}

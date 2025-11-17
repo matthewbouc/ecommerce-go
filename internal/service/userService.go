@@ -3,69 +3,84 @@ package service
 import (
 	"ecommerce/internal/domain"
 	"ecommerce/internal/dto"
+	"ecommerce/internal/repository"
+	"fmt"
 	"log"
 )
 
 type UserService struct {
+	UserRepository repository.UserRepository
 }
 
 // func (serv UserService) SignUp(input any) {} // any and interface don't enforce types, beneficial if it's a changing input
 // func (serv UserService) SignUp(input interface) {}
-func (serv UserService) Register(userInfo dto.RegisterDTO) (string, error) {
+func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error) {
 	log.Println(userInfo)
 
-	// TODO: setup db to create user here
-	return "this-is-the-token", nil
+	newUser := domain.User{
+		Email:     userInfo.Email,
+		Password:  userInfo.Password,
+		FirstName: userInfo.FirstName,
+		LastName:  userInfo.LastName,
+		Phone:     userInfo.Phone,
+	}
+	err := userService.UserRepository.CreateUser(&newUser)
+	if err != nil {
+		return "", err
+	}
+
+	fakeUserToken := fmt.Sprintf("%v, %v, %v", newUser.Id, newUser.Email, newUser.UserType)
+	return fakeUserToken, err
 }
 
-func (serv UserService) Login(attempt dto.LoginDTO) (string, error) {
+func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
 	return "", nil
 }
 
-func (serv UserService) findUserByEmail(email string) (*domain.User, error) {
+func (userService UserService) findUserByEmail(email string) (*domain.User, error) {
 	return nil, nil // using nil, nil because *domain is using a pointer to deal directly with the User object
 }
 
-func (serv UserService) GetVerificationCode(attempt domain.User) (int, error) {
+func (userService UserService) GetVerificationCode(attempt domain.User) (int, error) {
 	return 0, nil
 }
 
-func (serv UserService) VerifyCode(id uint, code int) error {
+func (userService UserService) VerifyCode(id uint, code int) error {
 	return nil
 }
 
-func (serv UserService) CreateProfile(id uint, input any) error {
+func (userService UserService) CreateProfile(id uint, input any) error {
 	return nil
 }
 
-func (serv UserService) GetProfile(id uint) (*domain.User, error) {
+func (userService UserService) GetProfile(id uint) (*domain.User, error) {
 	return nil, nil
 }
 
-func (serv UserService) UpdateProfile(id uint, input any) error {
+func (userService UserService) UpdateProfile(id uint, input any) error {
 	return nil
 }
 
-func (serv UserService) BecomeSeller(id uint, input any) error {
+func (userService UserService) BecomeSeller(id uint, input any) error {
 	return nil
 }
 
-func (serv UserService) FindCart(id uint) ([]interface{}, error) {
+func (userService UserService) FindCart(id uint) ([]interface{}, error) {
 	return nil, nil
 }
 
-func (serv UserService) CreateCart(id uint, input any) error {
+func (userService UserService) CreateCart(id uint, input any) error {
 	return nil
 }
 
-func (serv UserService) CreateOrder(id uint, input any) error {
+func (userService UserService) CreateOrder(id uint, input any) error {
 	return nil
 }
 
-func (serv UserService) GetOrders(id uint, input any) error {
+func (userService UserService) GetOrders(id uint, input any) error {
 	return nil
 }
 
-func (serv UserService) GetOrderById(id uint, input any) error {
+func (userService UserService) GetOrderById(id uint, input any) error {
 	return nil
 }
