@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"log"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type UserService struct {
@@ -22,7 +20,6 @@ func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error
 	log.Println(userInfo)
 
 	newUser := domain.User{
-		Uuid:      uuid.New(),
 		Email:     userInfo.Email,
 		Password:  userInfo.Password,
 		FirstName: userInfo.FirstName,
@@ -48,15 +45,36 @@ func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
 		return "", errors.New("wrong password")
 	}
 
-	foundUser.LastLogin = time.Now()
+	lastLogin := time.Now()
+	foundUser.LastLogin = &lastLogin
 	err = userService.UserRepository.UpdateUser(foundUser)
 
 	fakeUserToken := fmt.Sprintf("logged in as %v, %v, %v", foundUser.Uuid, foundUser.Email, foundUser.UserType)
 	return fakeUserToken, nil
 }
 
+func (userService UserService) DeleteUser(uuid string) error {
+	foundUser, err := userService.findUserByUuid(uuid)
+	if err != nil {
+		return err
+	}
+	err = userService.UserRepository.DeleteUser(foundUser)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (userService UserService) findUserByEmail(email string) (*domain.User, error) {
 	foundUser, err := userService.UserRepository.GetUserByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	return foundUser, nil
+}
+
+func (userService UserService) findUserByUuid(uuid string) (*domain.User, error) {
+	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
 	if err != nil {
 		return nil, err
 	}

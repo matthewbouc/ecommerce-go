@@ -17,3 +17,6 @@ Content-Type: application/json
   "email": "test@test.com",
   "password": "123Test"
 }
+
+### Delete a user
+DELETE {{base_url}}/user/{insert_uuid}

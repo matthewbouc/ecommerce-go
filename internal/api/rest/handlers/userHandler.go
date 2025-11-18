@@ -28,6 +28,7 @@ func SetupUserRoutes(router *rest.Router) {
 	// public endpoints
 	app.Post("/register", handler.Register)
 	app.Post("/login", handler.Login)
+	app.Delete("/user/:uuid", handler.DeleteUser)
 
 	// private endpoints
 	app.Get("/verify", handler.GetVerificationCode)
@@ -89,6 +90,20 @@ func (h *UserHandler) Login(ctx fiber.Ctx) error {
 		"message": login,
 	})
 }
+
+func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
+	uuid := ctx.Params("uuid")
+	err := h.service.DeleteUser(uuid)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "User deleted",
+	})
+}
+
 func (h *UserHandler) GetVerificationCode(ctx fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "success",
