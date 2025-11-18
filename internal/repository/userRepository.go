@@ -11,7 +11,7 @@ type UserRepository interface {
 	CreateUser(user *domain.User) error
 	GetUserById(userId uint) (*domain.User, error)
 	GetUserByEmail(email string) (*domain.User, error)
-	//UpdateUser(user domain.User) (*domain.User, error)
+	UpdateUser(user *domain.User) error
 }
 
 type userRepository struct {
@@ -49,4 +49,12 @@ func (r *userRepository) GetUserByEmail(email string) (*domain.User, error) {
 		return nil, fmt.Errorf("get user by email %s: %w", email, err)
 	}
 	return &user, nil
+}
+
+func (r *userRepository) UpdateUser(user *domain.User) error {
+	err := r.db.Save(&user).Error
+	if err != nil {
+		return fmt.Errorf("error while updating user: %w", err)
+	}
+	return nil
 }

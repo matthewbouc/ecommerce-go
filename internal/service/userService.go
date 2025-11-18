@@ -7,6 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type UserService struct {
@@ -19,6 +22,7 @@ func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error
 	log.Println(userInfo)
 
 	newUser := domain.User{
+		Uuid:      uuid.New(),
 		Email:     userInfo.Email,
 		Password:  userInfo.Password,
 		FirstName: userInfo.FirstName,
@@ -30,24 +34,33 @@ func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error
 		return "", err
 	}
 
-	fakeUserToken := fmt.Sprintf("%v, %v, %v", newUser.Id, newUser.Email, newUser.UserType)
+	fakeUserToken := fmt.Sprintf("%v, %v, %v", newUser.Uuid, newUser.Email, newUser.UserType)
 	return fakeUserToken, err
 }
 
 func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
-	foundUser, err := userService.UserRepository.GetUserByEmail(attempt.Email)
+	foundUser, err := userService.findUserByEmail(attempt.Email)
 	if err != nil {
-		return "", err
+		return "", errors.New("user not found: " + err.Error())
 	}
+
 	if foundUser.Password != attempt.Password {
 		return "", errors.New("wrong password")
 	}
-	fakeUserToken := fmt.Sprintf("logged in as %v, %v, %v", foundUser.Id, foundUser.Email, foundUser.UserType)
+
+	foundUser.LastLogin = time.Now()
+	err = userService.UserRepository.UpdateUser(foundUser)
+
+	fakeUserToken := fmt.Sprintf("logged in as %v, %v, %v", foundUser.Uuid, foundUser.Email, foundUser.UserType)
 	return fakeUserToken, nil
 }
 
 func (userService UserService) findUserByEmail(email string) (*domain.User, error) {
-	return nil, nil // using nil, nil because *domain is using a pointer to deal directly with the User object
+	foundUser, err := userService.UserRepository.GetUserByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	return foundUser, nil
 }
 
 func (userService UserService) GetVerificationCode(attempt domain.User) (int, error) {
