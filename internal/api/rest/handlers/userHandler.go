@@ -69,8 +69,24 @@ func (h *UserHandler) Register(ctx fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) Login(ctx fiber.Ctx) error {
+	loginAttempt := dto.LoginDTO{}
+
+	err := ctx.Bind().Body(&loginAttempt)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Please provide valid login inputs",
+		})
+	}
+
+	login, err := h.service.Login(loginAttempt)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "login success",
+		"message": login,
 	})
 }
 func (h *UserHandler) GetVerificationCode(ctx fiber.Ctx) error {

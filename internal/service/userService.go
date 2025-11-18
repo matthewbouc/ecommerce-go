@@ -4,6 +4,7 @@ import (
 	"ecommerce/internal/domain"
 	"ecommerce/internal/dto"
 	"ecommerce/internal/repository"
+	"errors"
 	"fmt"
 	"log"
 )
@@ -34,7 +35,15 @@ func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error
 }
 
 func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
-	return "", nil
+	foundUser, err := userService.UserRepository.GetUserByEmail(attempt.Email)
+	if err != nil {
+		return "", err
+	}
+	if foundUser.Password != attempt.Password {
+		return "", errors.New("wrong password")
+	}
+	fakeUserToken := fmt.Sprintf("logged in as %v, %v, %v", foundUser.Id, foundUser.Email, foundUser.UserType)
+	return fakeUserToken, nil
 }
 
 func (userService UserService) findUserByEmail(email string) (*domain.User, error) {

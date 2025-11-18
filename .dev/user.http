@@ -1,0 +1,19 @@
+### Register a new user
+POST {{base_url}}/register
+Content-Type: application/json
+
+{
+  "firstName": "first",
+  "lastName": "last",
+  "email": "test@test.com",
+  "password": "123Test"
+}
+
+### Log in as a user
+POST {{base_url}}/login
+Content-Type: application/json
+
+{
+  "email": "test@test.com",
+  "password": "123Test"
+}
