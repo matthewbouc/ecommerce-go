@@ -25,12 +25,13 @@ func SetupUserRoutes(router *rest.Router) {
 		service: serv,
 	}
 
-	// public endpoints
+	// #### public endpoints ####
 	app.Post("/register", handler.Register)
 	app.Post("/login", handler.Login)
+
+	// #### private endpoints ####
 	app.Delete("/user/:uuid", handler.DeleteUser)
 
-	// private endpoints
 	app.Get("/verify", handler.GetVerificationCode)
 	app.Post("/verify", handler.Verify)
 	app.Get("/profile", handler.GetProfile)
@@ -79,15 +80,15 @@ func (h *UserHandler) Login(ctx fiber.Ctx) error {
 		})
 	}
 
-	login, err := h.service.Login(loginAttempt)
+	token, err := h.service.Login(loginAttempt)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": login,
+		"message": token,
 	})
 }
 

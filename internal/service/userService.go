@@ -31,8 +31,8 @@ func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error
 		return "", err
 	}
 
-	fakeUserToken := fmt.Sprintf("%v, %v, %v", newUser.Uuid, newUser.Email, newUser.UserType)
-	return fakeUserToken, err
+	holderToken := fmt.Sprintf("%v, %v, %v", newUser.Uuid, newUser.Email, newUser.UserType)
+	return holderToken, err
 }
 
 func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
@@ -49,8 +49,8 @@ func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
 	foundUser.LastLogin = &lastLogin
 	err = userService.UserRepository.UpdateUser(foundUser)
 
-	fakeUserToken := fmt.Sprintf("logged in as %v, %v, %v", foundUser.Uuid, foundUser.Email, foundUser.UserType)
-	return fakeUserToken, nil
+	holderToken := fmt.Sprintf("logged in as %v, %v, %v", foundUser.Uuid, foundUser.Email, foundUser.UserType)
+	return holderToken, nil
 }
 
 func (userService UserService) DeleteUser(uuid string) error {
