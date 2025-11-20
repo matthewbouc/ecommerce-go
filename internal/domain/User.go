@@ -9,7 +9,7 @@ import (
 
 type User struct {
 	Id               uint           `json:"id" gorm:"column:id;primaryKey"`
-	Uuid             uuid.UUID      `json:"uuid" gorm:"column:uuid;default:gen_random_uuid()"`
+	Uuid             uuid.UUID      `json:"uuid" gorm:"column:uuid;type:uuid"`
 	FirstName        *string        `json:"first_name" gorm:"column:first_name"`
 	LastName         *string        `json:"last_name" gorm:"column:last_name"`
 	Phone            *string        `json:"phone" gorm:"column:phone"`
@@ -23,4 +23,11 @@ type User struct {
 	UpdatedAt        time.Time      `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	LastLogin        *time.Time     `json:"last_login" gorm:"column:last_login;default:null"`
 	DeletedAt        gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;default:null"`
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	if u.Uuid == uuid.Nil {
+		u.Uuid = uuid.New()
+	}
+	return nil
 }

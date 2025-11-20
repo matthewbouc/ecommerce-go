@@ -7,6 +7,7 @@ import (
 	"ecommerce/internal/service"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type UserHandler struct {
@@ -30,7 +31,7 @@ func SetupUserRoutes(router *rest.Router) {
 	app.Post("/login", handler.Login)
 
 	// #### private endpoints ####
-	app.Delete("/user/:uuid", handler.DeleteUser)
+	app.Delete("/user/:uuid<uuid>", handler.DeleteUser)
 
 	app.Get("/verify", handler.GetVerificationCode)
 	app.Post("/verify", handler.Verify)
@@ -93,15 +94,21 @@ func (h *UserHandler) Login(ctx fiber.Ctx) error {
 }
 
 func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
-	uuid := ctx.Params("uuid")
-	err := h.service.DeleteUser(uuid)
+	idParam := ctx.Params("uuid")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "invalid uuid provided",
+		})
+	}
+	err = h.service.DeleteUser(id)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "User deleted",
+		"message": "user deleted",
 	})
 }
 

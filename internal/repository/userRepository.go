@@ -4,6 +4,7 @@ import (
 	"ecommerce/internal/domain"
 	"fmt"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -11,7 +12,7 @@ import (
 type UserRepository interface {
 	CreateUser(user *domain.User) error
 	GetUserById(userId uint) (*domain.User, error)
-	GetUserByUuid(userUuid string) (*domain.User, error)
+	GetUserByUuid(userUuid uuid.UUID) (*domain.User, error)
 	GetUserByEmail(email string) (*domain.User, error)
 	UpdateUser(user *domain.User) error
 	DeleteUser(user *domain.User) error
@@ -45,7 +46,7 @@ func (r *userRepository) GetUserById(id uint) (*domain.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) GetUserByUuid(userUuid string) (*domain.User, error) {
+func (r *userRepository) GetUserByUuid(userUuid uuid.UUID) (*domain.User, error) {
 	var user domain.User
 	if err := r.db.First(&user, "uuid = ?", userUuid).Error; err != nil {
 		return nil, fmt.Errorf("error during get user by uuid %s: %w", userUuid, err)

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type UserService struct {
@@ -53,7 +55,7 @@ func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
 	return holderToken, nil
 }
 
-func (userService UserService) DeleteUser(uuid string) error {
+func (userService UserService) DeleteUser(uuid uuid.UUID) error {
 	foundUser, err := userService.findUserByUuid(uuid)
 	if err != nil {
 		return err
@@ -73,7 +75,7 @@ func (userService UserService) findUserByEmail(email string) (*domain.User, erro
 	return foundUser, nil
 }
 
-func (userService UserService) findUserByUuid(uuid string) (*domain.User, error) {
+func (userService UserService) findUserByUuid(uuid uuid.UUID) (*domain.User, error) {
 	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
 	if err != nil {
 		return nil, err

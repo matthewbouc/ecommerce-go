@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -80,7 +81,7 @@ func (a *Auth) VerifyJwt(tokenString string) (domain.User, error) {
 		}
 
 		user := domain.User{
-			Id:       uint(claims["userId"].(float64)),
+			Uuid:     claims["userUuid"].(uuid.UUID),
 			Email:    claims["email"].(string),
 			UserType: claims["role"].(string),
 		}
@@ -93,11 +94,22 @@ func (a *Auth) RefreshJwt(c *fiber.Ctx) error {
 	return nil
 }
 
-func (a *Auth) Authorize(ctx *fiber.Ctx) error {
-	return nil
+func (a *Auth) Authorize(ctx fiber.Ctx) error {
+
+	authHeader := ctx.Get("Authorization", "")
+
+	user, err := a.VerifyJwt(authHeader)
+
+	if err == nil && user.Uuid != uuid.Nil {
+		ctx.Locals("user", user)
+	}
+
+	return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		"error": "unauthorized",
+	})
 }
 
-func (a *Auth) GetCurrentUser(ctx *fiber.Ctx) (domain.User, error) {
-	user := domain.User{}
-	return user, nil
+func (a *Auth) GetCurrentUser(ctx fiber.Ctx) domain.User {
+	user := ctx.Locals("user")
+	return user.(domain.User)
 }

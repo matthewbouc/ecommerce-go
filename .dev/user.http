@@ -19,4 +19,4 @@ Content-Type: application/json
 }
 
 ### Delete a user
-DELETE {{base_url}}/user/{insert_uuid}
+DELETE {{base_url}}/user/
