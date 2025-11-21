@@ -10,7 +10,7 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(user *domain.User) error
+	CreateUser(user domain.User) (domain.User, error)
 	GetUserById(userId uint) (*domain.User, error)
 	GetUserByUuid(userUuid uuid.UUID) (*domain.User, error)
 	GetUserByEmail(email string) (*domain.User, error)
@@ -28,14 +28,14 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	}
 }
 
-func (r *userRepository) CreateUser(user *domain.User) error {
+func (r *userRepository) CreateUser(user domain.User) (domain.User, error) {
 	// gorm handles created_at and updated_at
 	err := r.db.Create(&user).Error
 	if err != nil {
-		return fmt.Errorf("create user error: %w", err)
+		return domain.User{}, fmt.Errorf("create user error: %w", err)
 
 	}
-	return nil
+	return user, nil
 }
 
 func (r *userRepository) GetUserById(id uint) (*domain.User, error) {

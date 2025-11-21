@@ -5,6 +5,7 @@ import (
 	"ecommerce/internal/api/rest"
 	"ecommerce/internal/api/rest/handlers"
 	"ecommerce/internal/domain"
+	"ecommerce/internal/helper"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
@@ -13,8 +14,8 @@ import (
 )
 
 func StartServer(config config.AppConfig) {
-	app := fiber.New()
 
+	// Setup database connection and migrate
 	database, err := gorm.Open(postgres.Open(config.DatabaseConfig), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("database connection fatal error: %v\n", err)
@@ -26,14 +27,22 @@ func StartServer(config config.AppConfig) {
 		log.Fatalf("database migration fatal error: %v\n", err)
 	}
 
+	// Setup server and routes
+	app := fiber.New()
+
+	auth := helper.SetupAuth(config.AuthSecret)
+
 	router := &rest.Router{
-		App: app,
-		DB:  database,
+		App:  app,
+		DB:   database,
+		Auth: auth,
 	}
 
 	setupRoutes(router)
 
-	log.Fatal(app.Listen(config.ServerPort))
+	log.Fatal(
+		app.Listen(config.ServerPort),
+	)
 }
 
 func setupRoutes(router *rest.Router) {

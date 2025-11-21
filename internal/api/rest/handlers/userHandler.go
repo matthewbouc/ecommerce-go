@@ -11,7 +11,6 @@ import (
 )
 
 type UserHandler struct {
-	// UserService
 	service service.UserService
 }
 
@@ -21,6 +20,7 @@ func SetupUserRoutes(router *rest.Router) {
 
 	serv := service.UserService{
 		UserRepository: repository.NewUserRepository(router.DB),
+		Auth:           router.Auth,
 	}
 	handler := UserHandler{
 		service: serv,

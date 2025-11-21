@@ -10,6 +10,7 @@ import (
 type AppConfig struct {
 	ServerPort     string
 	DatabaseConfig string
+	AuthSecret     string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -31,5 +32,10 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("no DATA_SOURCE_NAME environment variable set")
 	}
 
-	return AppConfig{ServerPort: httpPort, DatabaseConfig: databaseConfig}, nil
+	authSecret := os.Getenv("AUTH_SECRET")
+	if len(authSecret) < 1 {
+		return AppConfig{}, errors.New("no AUTH_SECRET environment variable set")
+	}
+
+	return AppConfig{ServerPort: httpPort, DatabaseConfig: databaseConfig, AuthSecret: authSecret}, nil
 }

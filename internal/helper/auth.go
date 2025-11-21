@@ -17,6 +17,12 @@ type Auth struct {
 	Secret string
 }
 
+func SetupAuth(secret string) Auth {
+	return Auth{
+		Secret: secret,
+	}
+}
+
 func (a *Auth) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
