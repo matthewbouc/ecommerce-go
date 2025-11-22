@@ -15,7 +15,6 @@ import (
 
 func StartServer(config config.AppConfig) {
 
-	// Setup database connection and migrate
 	database, err := gorm.Open(postgres.Open(config.DatabaseConfig), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("database connection fatal error: %v\n", err)
@@ -27,7 +26,6 @@ func StartServer(config config.AppConfig) {
 		log.Fatalf("database migration fatal error: %v\n", err)
 	}
 
-	// Setup server and routes
 	app := fiber.New()
 
 	auth := helper.SetupAuth(config.AuthSecret)

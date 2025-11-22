@@ -7,7 +7,6 @@ import (
 	"ecommerce/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 type UserHandler struct {
@@ -18,32 +17,38 @@ func SetupUserRoutes(router *rest.Router) {
 
 	app := router.App
 
-	serv := service.UserService{
+	userSvc := service.UserService{
 		UserRepository: repository.NewUserRepository(router.DB),
 		Auth:           router.Auth,
 	}
-	handler := UserHandler{
-		service: serv,
+	userHandler := UserHandler{
+		service: userSvc,
 	}
 
-	// #### public endpoints ####
-	app.Post("/register", handler.Register)
-	app.Post("/login", handler.Login)
+	user := app.Group("/user")
 
-	// #### private endpoints ####
-	app.Delete("/user/:uuid<uuid>", handler.DeleteUser)
+	// #### public ####
+	user.Post("/register", userHandler.Register)
+	user.Post("/login", userHandler.Login)
 
-	app.Get("/verify", handler.GetVerificationCode)
-	app.Post("/verify", handler.Verify)
-	app.Get("/profile", handler.GetProfile)
-	app.Post("/profile", handler.CreateProfile)
+	// #### private ####
+	pvtUser := user.Group("/", router.Auth.Authorize)
 
-	app.Get("/cart", handler.GetCart)
-	app.Post("/cart", handler.AddToCart)
-	app.Get("/order", handler.GetOrders)
-	app.Get("/order/:id", handler.GetOrder)
+	pvtUser.Delete("/", userHandler.DeleteUser)
 
-	app.Post("/become-seller", handler.BecomeSeller)
+	pvtUser.Get("/verify", userHandler.GetVerificationCode)
+	pvtUser.Post("/verify", userHandler.Verify)
+
+	pvtUser.Get("/profile", userHandler.GetProfile)
+	pvtUser.Post("/profile", userHandler.CreateProfile)
+
+	pvtUser.Get("/cart", userHandler.GetCart)
+	pvtUser.Post("/cart", userHandler.AddToCart)
+
+	pvtUser.Get("/order", userHandler.GetOrders)
+	pvtUser.Get("/order/:id", userHandler.GetOrder)
+
+	pvtUser.Post("/become-seller", userHandler.BecomeSeller)
 }
 
 func (h *UserHandler) Register(ctx fiber.Ctx) error {
@@ -67,7 +72,7 @@ func (h *UserHandler) Register(ctx fiber.Ctx) error {
 	}
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "register success",
+		"message": "register successful",
 		"token":   token,
 	})
 }
@@ -89,19 +94,14 @@ func (h *UserHandler) Login(ctx fiber.Ctx) error {
 	}
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": token,
+		"message": "login successful",
+		"token":   token,
 	})
 }
 
 func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
-	idParam := ctx.Params("uuid")
-	id, err := uuid.Parse(idParam)
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "invalid uuid provided",
-		})
-	}
-	err = h.service.DeleteUser(id)
+	user := h.service.Auth.GetCurrentUser(ctx)
+	err := h.service.DeleteUser(user.Uuid)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),

@@ -41,8 +41,8 @@ func (a *Auth) VerifyPassword(password string, hashedPassword string) error {
 	return nil
 }
 
-func (a *Auth) GenerateJwt(id uint, email string, role string) (string, error) {
-	if id == 0 || email == "" || role == "" {
+func (a *Auth) GenerateJwt(id uuid.UUID, email string, role string) (string, error) {
+	if id == uuid.Nil || email == "" || role == "" {
 		return "", errors.New("required inputs are missing to generate tokens")
 	}
 
@@ -86,8 +86,14 @@ func (a *Auth) VerifyJwt(tokenString string) (domain.User, error) {
 			return domain.User{}, errors.New("token is expired")
 		}
 
+		strUuid := claims["userId"].(string)
+		userUuid, err := uuid.Parse(strUuid)
+		if err != nil {
+			return domain.User{}, errors.New("invalid uuid")
+		}
+
 		user := domain.User{
-			Uuid:     claims["userUuid"].(uuid.UUID),
+			Uuid:     userUuid,
 			Email:    claims["email"].(string),
 			UserType: claims["role"].(string),
 		}
@@ -108,10 +114,12 @@ func (a *Auth) Authorize(ctx fiber.Ctx) error {
 
 	if err == nil && user.Uuid != uuid.Nil {
 		ctx.Locals("user", user)
+		return ctx.Next()
 	}
 
 	return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-		"error": "unauthorized",
+		"message": "authorization failed",
+		"reason":  err,
 	})
 }
 

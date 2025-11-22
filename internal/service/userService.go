@@ -3,10 +3,9 @@ package service
 import (
 	"ecommerce/internal/domain"
 	"ecommerce/internal/dto"
+	"ecommerce/internal/helper"
 	"ecommerce/internal/repository"
 	"errors"
-	"fmt"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,45 +13,46 @@ import (
 
 type UserService struct {
 	UserRepository repository.UserRepository
+	Auth           helper.Auth
 }
 
-// func (serv UserService) SignUp(input any) {} // any and interface don't enforce types, beneficial if it's a changing input
-// func (serv UserService) SignUp(input interface) {}
 func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error) {
-	log.Println(userInfo)
 
-	newUser := domain.User{
-		Email:     userInfo.Email,
-		Password:  userInfo.Password,
-		FirstName: userInfo.FirstName,
-		LastName:  userInfo.LastName,
-		Phone:     userInfo.Phone,
-	}
-	err := userService.UserRepository.CreateUser(&newUser)
+	hashPassword, err := userService.Auth.HashPassword(userInfo.Password)
 	if err != nil {
 		return "", err
 	}
 
-	holderToken := fmt.Sprintf("%v, %v, %v", newUser.Uuid, newUser.Email, newUser.UserType)
-	return holderToken, err
+	user, err := userService.UserRepository.CreateUser(domain.User{
+		Email:     userInfo.Email,
+		Password:  hashPassword,
+		FirstName: userInfo.FirstName,
+		LastName:  userInfo.LastName,
+		Phone:     userInfo.Phone,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return userService.Auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
 func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
-	foundUser, err := userService.findUserByEmail(attempt.Email)
+	user, err := userService.findUserByEmail(attempt.Email)
 	if err != nil {
 		return "", errors.New("user not found: " + err.Error())
 	}
 
-	if foundUser.Password != attempt.Password {
-		return "", errors.New("wrong password")
+	err = userService.Auth.VerifyPassword(attempt.Password, user.Password)
+	if err != nil {
+		return "", err
 	}
 
 	lastLogin := time.Now()
-	foundUser.LastLogin = &lastLogin
-	err = userService.UserRepository.UpdateUser(foundUser)
+	user.LastLogin = &lastLogin
+	err = userService.UserRepository.UpdateUser(user)
 
-	holderToken := fmt.Sprintf("logged in as %v, %v, %v", foundUser.Uuid, foundUser.Email, foundUser.UserType)
-	return holderToken, nil
+	return userService.Auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
 func (userService UserService) DeleteUser(uuid uuid.UUID) error {

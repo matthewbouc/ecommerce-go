@@ -1,5 +1,5 @@
 ### Register a new user
-POST {{base_url}}/register
+POST {{base_url}}/user/register
 Content-Type: application/json
 
 {
@@ -10,7 +10,7 @@ Content-Type: application/json
 }
 
 ### Log in as a user
-POST {{base_url}}/login
+POST {{base_url}}/user/login
 Content-Type: application/json
 
 {
@@ -19,4 +19,5 @@ Content-Type: application/json
 }
 
 ### Delete a user
-DELETE {{base_url}}/user/
+DELETE {{base_url}}/user
+Authorization: Bearer {{token}}
