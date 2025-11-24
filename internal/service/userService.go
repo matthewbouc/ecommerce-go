@@ -6,7 +6,7 @@ import (
 	"ecommerce/internal/dto"
 	"ecommerce/internal/helper"
 	"ecommerce/internal/repository"
-	"ecommerce/pkg/notification"
+	"ecommerce/pkg/notification/sms/provider"
 	"errors"
 	"fmt"
 	"time"
@@ -122,13 +122,13 @@ func (userService UserService) GetVerificationCode(attempt domain.User) (int, er
 	}
 
 	// Send SMS Notification
-	smsClient := notification.NewSmsClient(userService.Config)
+	smsClient := provider.NewTwilioSmsClient(userService.Config)
 
 	msg := fmt.Sprintf("Your verification code is %v", code)
 
 	err = smsClient.SendSms(user.Phone, msg)
 	if err != nil {
-		return 0, err
+		return 0, errors.New("unable to send sms message")
 	}
 
 	// TODO remove the return "code" at some point

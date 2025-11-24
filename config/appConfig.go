@@ -54,10 +54,6 @@ func SetupEnv() (cfg AppConfig, err error) {
 	if len(myPhoneNumber) < 1 {
 		return AppConfig{}, errors.New("no MY_NUMBER environment variable set")
 	}
-	digitalReceiver := os.Getenv("DIGITAL_RECEIVER")
-	if len(digitalReceiver) < 1 {
-		return AppConfig{}, errors.New("no DIGITAL_RECEIVER environment variable set")
-	}
 
 	return AppConfig{
 		ServerPort:     httpPort,
