@@ -102,7 +102,7 @@ func (a *Auth) VerifyJwt(tokenString string) (domain.User, error) {
 	return domain.User{}, errors.New("token verification failed")
 }
 
-func (a *Auth) RefreshJwt(c *fiber.Ctx) error {
+func (a *Auth) RefreshJwt(ctx fiber.Ctx) error {
 	return nil
 }
 
@@ -126,4 +126,8 @@ func (a *Auth) Authorize(ctx fiber.Ctx) error {
 func (a *Auth) GetCurrentUser(ctx fiber.Ctx) domain.User {
 	user := ctx.Locals("user")
 	return user.(domain.User)
+}
+
+func (a *Auth) GenerateCode() (int, error) {
+	return RandomNumbers(6)
 }

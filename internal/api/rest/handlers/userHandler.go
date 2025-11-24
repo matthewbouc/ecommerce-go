@@ -32,6 +32,7 @@ func SetupUserRoutes(router *rest.Router) {
 	user.Post("/login", userHandler.Login)
 
 	// #### private ####
+	// TODO, eventually want to verify role and that user is not deleted. Add additional handlers for that logic?
 	pvtUser := user.Group("/", router.Auth.Authorize)
 
 	pvtUser.Delete("/", userHandler.DeleteUser)
@@ -53,7 +54,7 @@ func SetupUserRoutes(router *rest.Router) {
 
 func (h *UserHandler) Register(ctx fiber.Ctx) error {
 
-	user := dto.RegisterDTO{}
+	user := dto.RegisterRequest{}
 
 	// TODO: add some validation here?
 	err := ctx.Bind().Body(&user)
@@ -77,7 +78,7 @@ func (h *UserHandler) Register(ctx fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) Login(ctx fiber.Ctx) error {
-	loginAttempt := dto.LoginDTO{}
+	loginAttempt := dto.LoginRequest{}
 
 	err := ctx.Bind().Body(&loginAttempt)
 	if err != nil {
@@ -113,13 +114,43 @@ func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
 }
 
 func (h *UserHandler) GetVerificationCode(ctx fiber.Ctx) error {
+
+	user := h.service.Auth.GetCurrentUser(ctx)
+
+	code, err := h.service.GetVerificationCode(user)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "success",
+		"message": "get verification code successful",
+		"code":    code,
 	})
 }
 func (h *UserHandler) Verify(ctx fiber.Ctx) error {
+
+	user := h.service.Auth.GetCurrentUser(ctx)
+
+	var req dto.VerificationCodeInput
+
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "please provide valid input",
+		})
+	}
+
+	err := h.service.VerifyCode(user.Uuid, req.Code)
+
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "success",
+		"message": "code successfully verified",
 	})
 }
 func (h *UserHandler) GetProfile(ctx fiber.Ctx) error {

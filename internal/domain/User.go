@@ -15,8 +15,8 @@ type User struct {
 	Phone            *string        `json:"phone" gorm:"column:phone"`
 	Email            string         `json:"email" gorm:"column:email;index;unique;not null"`
 	Password         string         `json:"password" gorm:"column:password;not null"`
-	VerificationCode *string        `json:"verification_code" gorm:"column:verification_code"`
-	Expiry           *time.Time     `json:"expiry" gorm:"column:expiry;default:null"`
+	VerificationCode int            `json:"verification_code" gorm:"column:verification_code"`
+	Expiry           time.Time      `json:"expiry" gorm:"column:expiry;default:null"`
 	Verified         bool           `json:"verified" gorm:"column:verified;default:false"`
 	UserType         string         `json:"user_type" gorm:"column:user_type;default:buyer"`
 	CreatedAt        time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`

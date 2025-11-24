@@ -16,7 +16,7 @@ type UserService struct {
 	Auth           helper.Auth
 }
 
-func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error) {
+func (userService UserService) Register(userInfo dto.RegisterRequest) (string, error) {
 
 	hashPassword, err := userService.Auth.HashPassword(userInfo.Password)
 	if err != nil {
@@ -37,7 +37,7 @@ func (userService UserService) Register(userInfo dto.RegisterDTO) (string, error
 	return userService.Auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
-func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
+func (userService UserService) Login(attempt dto.LoginRequest) (string, error) {
 	user, err := userService.findUserByEmail(attempt.Email)
 	if err != nil {
 		return "", errors.New("user not found: " + err.Error())
@@ -56,7 +56,7 @@ func (userService UserService) Login(attempt dto.LoginDTO) (string, error) {
 }
 
 func (userService UserService) DeleteUser(uuid uuid.UUID) error {
-	foundUser, err := userService.findUserByUuid(uuid)
+	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
 	if err != nil {
 		return err
 	}
@@ -83,11 +83,70 @@ func (userService UserService) findUserByUuid(uuid uuid.UUID) (*domain.User, err
 	return foundUser, nil
 }
 
-func (userService UserService) GetVerificationCode(attempt domain.User) (int, error) {
-	return 0, nil
+func (userService UserService) isActiveUser(uuid uuid.UUID) bool {
+	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
+	return err == nil && !foundUser.DeletedAt.Valid
 }
 
-func (userService UserService) VerifyCode(id uint, code int) error {
+func (userService UserService) isVerifiedUser(id uuid.UUID) bool {
+	foundUser, err := userService.UserRepository.GetUserByUuid(id)
+	return err == nil && foundUser.Verified
+
+}
+
+func (userService UserService) GetVerificationCode(attempt domain.User) (int, error) {
+	if userService.isVerifiedUser(attempt.Uuid) {
+		return 0, errors.New("user is already verified")
+	}
+
+	code, err := userService.Auth.GenerateCode()
+	if err != nil {
+		return 0, err
+	}
+
+	user := domain.User{
+		Uuid:             attempt.Uuid,
+		Expiry:           time.Now().Add(15 * time.Minute),
+		VerificationCode: code,
+	}
+
+	err = userService.UserRepository.UpdateUser(&user)
+
+	if err != nil {
+		return 0, errors.New("unable to updated verification code")
+	}
+
+	// TODO Send an SMS verification code
+
+	return code, nil
+}
+
+func (userService UserService) VerifyCode(Uuid uuid.UUID, code int) error {
+
+	if userService.isVerifiedUser(Uuid) {
+		return errors.New("user is already verified")
+	}
+
+	user, err := userService.findUserByUuid(Uuid)
+	if err != nil {
+		return err
+	}
+
+	if user.VerificationCode != code {
+		return errors.New("invalid verification code")
+	}
+
+	if time.Now().After(user.Expiry) {
+		return errors.New("verification code is expired")
+	}
+
+	user.Verified = true
+
+	err = userService.UserRepository.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

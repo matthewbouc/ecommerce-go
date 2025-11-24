@@ -65,7 +65,7 @@ func (r *userRepository) GetUserByEmail(email string) (*domain.User, error) {
 
 func (r *userRepository) UpdateUser(user *domain.User) error {
 	// gorm will update_at
-	err := r.db.Model(&user).Clauses(clause.Returning{}).Where("id=?", user.Id).Updates(user).Error
+	err := r.db.Model(&user).Clauses(clause.Returning{}).Where("uuid=?", user.Uuid).Updates(user).Error
 	if err != nil {
 		return fmt.Errorf("error while updating user: %w", err)
 	}
