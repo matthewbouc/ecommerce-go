@@ -13,13 +13,14 @@ type UserHandler struct {
 	service service.UserService
 }
 
-func SetupUserRoutes(router *rest.Router) {
+func SetupUserRoutes(rh *rest.RestHandler) {
 
-	app := router.App
+	app := rh.App
 
 	userSvc := service.UserService{
-		UserRepository: repository.NewUserRepository(router.DB),
-		Auth:           router.Auth,
+		UserRepository: repository.NewUserRepository(rh.DB),
+		Auth:           rh.Auth,
+		Config:         rh.Config,
 	}
 	userHandler := UserHandler{
 		service: userSvc,
@@ -33,7 +34,7 @@ func SetupUserRoutes(router *rest.Router) {
 
 	// #### private ####
 	// TODO, eventually want to verify role and that user is not deleted. Add additional handlers for that logic?
-	pvtUser := user.Group("/", router.Auth.Authorize)
+	pvtUser := user.Group("/", rh.Auth.Authorize)
 
 	pvtUser.Delete("/", userHandler.DeleteUser)
 

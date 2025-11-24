@@ -1,11 +1,14 @@
 package service
 
 import (
+	"ecommerce/config"
 	"ecommerce/internal/domain"
 	"ecommerce/internal/dto"
 	"ecommerce/internal/helper"
 	"ecommerce/internal/repository"
+	"ecommerce/pkg/notification"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +17,7 @@ import (
 type UserService struct {
 	UserRepository repository.UserRepository
 	Auth           helper.Auth
+	Config         config.AppConfig
 }
 
 func (userService UserService) Register(userInfo dto.RegisterRequest) (string, error) {
@@ -104,9 +108,10 @@ func (userService UserService) GetVerificationCode(attempt domain.User) (int, er
 		return 0, err
 	}
 
+	expiry := time.Now().Add(15 * time.Minute)
 	user := domain.User{
 		Uuid:             attempt.Uuid,
-		Expiry:           time.Now().Add(15 * time.Minute),
+		Expiry:           &expiry,
 		VerificationCode: code,
 	}
 
@@ -116,8 +121,17 @@ func (userService UserService) GetVerificationCode(attempt domain.User) (int, er
 		return 0, errors.New("unable to updated verification code")
 	}
 
-	// TODO Send an SMS verification code
+	// Send SMS Notification
+	smsClient := notification.NewSmsClient(userService.Config)
 
+	msg := fmt.Sprintf("Your verification code is %v", code)
+
+	err = smsClient.SendSms(user.Phone, msg)
+	if err != nil {
+		return 0, err
+	}
+
+	// TODO remove the return "code" at some point
 	return code, nil
 }
 
@@ -136,7 +150,7 @@ func (userService UserService) VerifyCode(Uuid uuid.UUID, code int) error {
 		return errors.New("invalid verification code")
 	}
 
-	if time.Now().After(user.Expiry) {
+	if time.Now().After(*user.Expiry) {
 		return errors.New("verification code is expired")
 	}
 

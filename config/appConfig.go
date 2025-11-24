@@ -11,6 +11,9 @@ type AppConfig struct {
 	ServerPort     string
 	DatabaseConfig string
 	AuthSecret     string
+	TwilioToken    string
+	TwilioAccount  string
+	TwilioNumber   string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -37,5 +40,31 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("no AUTH_SECRET environment variable set")
 	}
 
-	return AppConfig{ServerPort: httpPort, DatabaseConfig: databaseConfig, AuthSecret: authSecret}, nil
+	twilioToken := os.Getenv("TWILIO_AUTH_TOKEN")
+	if len(twilioToken) < 1 {
+		return AppConfig{}, errors.New("no TWILIO_AUTH_TOKEN environment variable set")
+	}
+
+	twilioAccount := os.Getenv("TWILIO_ACCOUNT_SID")
+	if len(twilioAccount) < 1 {
+		return AppConfig{}, errors.New("no TWILIO_ACCOUNT environment variable set")
+	}
+
+	myPhoneNumber := os.Getenv("TWILIO_NUMBER")
+	if len(myPhoneNumber) < 1 {
+		return AppConfig{}, errors.New("no MY_NUMBER environment variable set")
+	}
+	digitalReceiver := os.Getenv("DIGITAL_RECEIVER")
+	if len(digitalReceiver) < 1 {
+		return AppConfig{}, errors.New("no DIGITAL_RECEIVER environment variable set")
+	}
+
+	return AppConfig{
+		ServerPort:     httpPort,
+		DatabaseConfig: databaseConfig,
+		AuthSecret:     authSecret,
+		TwilioAccount:  twilioAccount,
+		TwilioToken:    twilioToken,
+		TwilioNumber:   myPhoneNumber,
+	}, nil
 }

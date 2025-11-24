@@ -30,20 +30,21 @@ func StartServer(config config.AppConfig) {
 
 	auth := helper.SetupAuth(config.AuthSecret)
 
-	router := &rest.Router{
-		App:  app,
-		DB:   database,
-		Auth: auth,
+	restHandler := &rest.RestHandler{
+		App:    app,
+		DB:     database,
+		Auth:   auth,
+		Config: config,
 	}
 
-	setupRoutes(router)
+	setupRoutes(restHandler)
 
 	log.Fatal(
 		app.Listen(config.ServerPort),
 	)
 }
 
-func setupRoutes(router *rest.Router) {
+func setupRoutes(router *rest.RestHandler) {
 	// user handler
 	handlers.SetupUserRoutes(router)
 	//catalog handler
