@@ -21,6 +21,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 		UserRepository: repository.NewUserRepository(rh.DB),
 		Auth:           rh.Auth,
 		Config:         rh.Config,
+		SmsClient:      rh.SmsClient,
 	}
 	userHandler := UserHandler{
 		service: userSvc,

@@ -6,6 +6,7 @@ import (
 	"ecommerce/internal/api/rest/handlers"
 	"ecommerce/internal/domain"
 	"ecommerce/internal/helper"
+	"ecommerce/pkg/notification/sms/provider"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
@@ -30,11 +31,14 @@ func StartServer(config config.AppConfig) {
 
 	auth := helper.SetupAuth(config.AuthSecret)
 
+	smsClient := provider.NewTwilioSmsClient(config)
+
 	restHandler := &rest.RestHandler{
-		App:    app,
-		DB:     database,
-		Auth:   auth,
-		Config: config,
+		App:       app,
+		DB:        database,
+		Auth:      auth,
+		Config:    config,
+		SmsClient: smsClient,
 	}
 
 	setupRoutes(restHandler)
@@ -44,9 +48,9 @@ func StartServer(config config.AppConfig) {
 	)
 }
 
-func setupRoutes(router *rest.RestHandler) {
+func setupRoutes(rh *rest.RestHandler) {
 	// user handler
-	handlers.SetupUserRoutes(router)
+	handlers.SetupUserRoutes(rh)
 	//catalog handler
 	//transactionhandler
 }

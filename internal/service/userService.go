@@ -6,7 +6,7 @@ import (
 	"ecommerce/internal/dto"
 	"ecommerce/internal/helper"
 	"ecommerce/internal/repository"
-	"ecommerce/pkg/notification/sms/provider"
+	"ecommerce/pkg/notification/sms"
 	"errors"
 	"fmt"
 	"time"
@@ -18,6 +18,7 @@ type UserService struct {
 	UserRepository repository.UserRepository
 	Auth           helper.Auth
 	Config         config.AppConfig
+	SmsClient      sms.SmsClient
 }
 
 func (userService UserService) Register(userInfo dto.RegisterRequest) (string, error) {
@@ -122,11 +123,9 @@ func (userService UserService) GetVerificationCode(attempt domain.User) (int, er
 	}
 
 	// Send SMS Notification
-	smsClient := provider.NewTwilioSmsClient(userService.Config)
-
 	msg := fmt.Sprintf("Your verification code is %v", code)
 
-	err = smsClient.SendSms(user.Phone, msg)
+	err = userService.SmsClient.SendSms(user.Phone, msg)
 	if err != nil {
 		return 0, errors.New("unable to send sms message")
 	}
