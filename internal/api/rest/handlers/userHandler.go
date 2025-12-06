@@ -18,10 +18,11 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	app := rh.App
 
 	userSvc := service.UserService{
-		UserRepository: repository.NewUserRepository(rh.DB),
-		Auth:           rh.Auth,
-		Config:         rh.Config,
-		SmsClient:      rh.SmsClient,
+		UserRepository:        repository.NewUserRepository(rh.DB),
+		BankAccountRepository: repository.NewBankAccountRepository(rh.DB),
+		Auth:                  rh.Auth,
+		Config:                rh.Config,
+		SmsClient:             rh.SmsClient,
 	}
 	userHandler := UserHandler{
 		service: userSvc,
@@ -186,7 +187,28 @@ func (h *UserHandler) GetOrder(ctx fiber.Ctx) error {
 	})
 }
 func (h *UserHandler) BecomeSeller(ctx fiber.Ctx) error {
+
+	user := h.service.Auth.GetCurrentUser(ctx)
+
+	req := dto.BecomeSellerRequest{}
+	err := ctx.Bind().Body(&req)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "please provide valid input",
+		})
+	}
+
+	req.Uuid = user.Uuid
+	token, err := h.service.BecomeSeller(req)
+
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "failed to register as a seller",
+		})
+	}
+
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "success",
+		"message": "successfully registered as a seller",
+		"token":   token,
 	})
 }

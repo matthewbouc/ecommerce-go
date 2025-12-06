@@ -15,10 +15,11 @@ import (
 )
 
 type UserService struct {
-	UserRepository repository.UserRepository
-	Auth           helper.Auth
-	Config         config.AppConfig
-	SmsClient      sms.SmsClient
+	UserRepository        repository.UserRepository
+	BankAccountRepository repository.BankAccountRepository
+	Auth                  helper.Auth
+	Config                config.AppConfig
+	SmsClient             sms.SmsClient
 }
 
 func (userService UserService) Register(userInfo dto.RegisterRequest) (string, error) {
@@ -175,8 +176,42 @@ func (userService UserService) UpdateProfile(id uint, input any) error {
 	return nil
 }
 
-func (userService UserService) BecomeSeller(id uint, input any) error {
-	return nil
+func (userService UserService) BecomeSeller(req dto.BecomeSellerRequest) (string, error) {
+
+	user, err := userService.findUserByUuid(req.Uuid)
+	if err != nil {
+		return "", err
+	}
+	// TODO - make a "seller" const
+	if user.UserType == "seller" {
+		return "", errors.New("user is already a seller")
+	}
+
+	// TODO - validation on inputs
+	user.UserType = "seller"
+	user.FirstName = req.FirstName
+	user.LastName = req.LastName
+	user.Phone = req.Phone
+	// update user, create seller
+	err = userService.UserRepository.UpdateUser(user)
+	if err != nil {
+		return "", err
+	}
+
+	bankAccount, err := userService.BankAccountRepository.CreateBankAccount(domain.BankAccount{
+		UserId:            user.Id,
+		BankAccountNumber: req.BankAccountNumber,
+		SwiftCode:         req.SwiftCode,
+	})
+
+	// TODO - continue here
+	if err != nil {
+		return "", err
+	}
+
+	// generate token then return
+
+	return fmt.Sprintf("bank account added for user id %v", bankAccount.UserId), nil
 }
 
 func (userService UserService) FindCart(id uint) ([]interface{}, error) {
