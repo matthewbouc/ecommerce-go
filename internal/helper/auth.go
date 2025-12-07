@@ -41,7 +41,7 @@ func (a *Auth) VerifyPassword(password string, hashedPassword string) error {
 	return nil
 }
 
-func (a *Auth) GenerateJwt(id uuid.UUID, email string, role string) (string, error) {
+func (a *Auth) GenerateJwt(id uuid.UUID, email string, role domain.UserType) (string, error) {
 	if id == uuid.Nil || email == "" || role == "" {
 		return "", errors.New("required inputs are missing to generate tokens")
 	}
@@ -92,10 +92,15 @@ func (a *Auth) VerifyJwt(tokenString string) (domain.User, error) {
 			return domain.User{}, errors.New("invalid uuid")
 		}
 
+		userRole := domain.UserType(claims["role"].(string))
+		if !userRole.IsValidUserType() {
+			return domain.User{}, errors.New("invalid user type")
+		}
+
 		user := domain.User{
 			Uuid:     userUuid,
 			Email:    claims["email"].(string),
-			UserType: claims["role"].(string),
+			UserType: userRole,
 		}
 		return user, nil
 	}

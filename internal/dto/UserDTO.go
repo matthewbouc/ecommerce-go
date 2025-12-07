@@ -1,6 +1,10 @@
 package dto
 
-import "github.com/google/uuid"
+import (
+	"errors"
+
+	"github.com/google/uuid"
+)
 
 type RegisterRequest struct {
 	Email     string `json:"email"`    // required
@@ -25,6 +29,20 @@ type BecomeSellerRequest struct {
 	LastName          string    `json:"lastName"`
 	Phone             string    `json:"phone"`
 	BankAccountNumber uint      `json:"bankAccountNumber"`
-	SwiftCode         string    `json:"swiftCode"`
+	RoutingNumber     uint      `json:"routingNumber"`
+	SwiftCode         uint      `json:"swiftCode"`
 	PaymentMethod     string    `json:"paymentMethod"`
+}
+
+func (r *BecomeSellerRequest) ValidateBecomeSellerRequest() error {
+	hasRoutingNumber := r.RoutingNumber != 0
+	hasSwiftCode := r.SwiftCode != 0
+
+	if hasRoutingNumber && hasSwiftCode {
+		return errors.New("cannot provide both routing number and swift code")
+	}
+	if !hasRoutingNumber && !hasSwiftCode {
+		return errors.New("must provide either routing number or swift code")
+	}
+	return nil
 }

@@ -1,10 +1,18 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+)
+
+type UserType string
+
+const (
+	SELLER = "seller"
+	BUYER  = "buyer"
 )
 
 type User struct {
@@ -18,7 +26,7 @@ type User struct {
 	VerificationCode int            `json:"verification_code" gorm:"column:verification_code"`
 	Expiry           *time.Time     `json:"expiry" gorm:"column:expiry;default:null"`
 	Verified         bool           `json:"verified" gorm:"column:verified;default:false"`
-	UserType         string         `json:"user_type" gorm:"column:user_type;default:buyer"`
+	UserType         UserType       `json:"user_type" gorm:"column:user_type;default:buyer"`
 	CreatedAt        time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt        time.Time      `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	LastLogin        *time.Time     `json:"last_login" gorm:"column:last_login;default:null"`
@@ -29,5 +37,16 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if u.Uuid == uuid.Nil {
 		u.Uuid = uuid.New()
 	}
+
+	if u.UserType == "" {
+		u.UserType = BUYER
+	}
+	if !u.UserType.IsValidUserType() {
+		return errors.New("invalid user type")
+	}
 	return nil
+}
+
+func (ut UserType) IsValidUserType() bool {
+	return ut == BUYER || ut == SELLER
 }

@@ -182,13 +182,12 @@ func (userService UserService) BecomeSeller(req dto.BecomeSellerRequest) (string
 	if err != nil {
 		return "", err
 	}
-	// TODO - make a "seller" const
-	if user.UserType == "seller" {
+
+	if user.UserType == domain.SELLER {
 		return "", errors.New("user is already a seller")
 	}
 
-	// TODO - validation on inputs
-	user.UserType = "seller"
+	user.UserType = domain.SELLER
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
 	user.Phone = req.Phone
@@ -198,20 +197,22 @@ func (userService UserService) BecomeSeller(req dto.BecomeSellerRequest) (string
 		return "", err
 	}
 
-	bankAccount, err := userService.BankAccountRepository.CreateBankAccount(domain.BankAccount{
+	_, err = userService.BankAccountRepository.CreateBankAccount(domain.BankAccount{
 		UserId:            user.Id,
 		BankAccountNumber: req.BankAccountNumber,
-		SwiftCode:         req.SwiftCode,
+		RoutingNumber:     req.RoutingNumber,
 	})
 
-	// TODO - continue here
 	if err != nil {
 		return "", err
 	}
 
-	// generate token then return
+	sellerToken, err := userService.Auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
+	if err != nil {
+		return "", err
+	}
 
-	return fmt.Sprintf("bank account added for user id %v", bankAccount.UserId), nil
+	return sellerToken, nil
 }
 
 func (userService UserService) FindCart(id uint) ([]interface{}, error) {
