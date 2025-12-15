@@ -1,5 +1,5 @@
 .idea/
-.env
+.env.dev
 .ds_store
 
 package-lock.json

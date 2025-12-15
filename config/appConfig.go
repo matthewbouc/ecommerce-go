@@ -19,7 +19,7 @@ type AppConfig struct {
 func SetupEnv() (cfg AppConfig, err error) {
 
 	if os.Getenv("APP_ENV") == "dev" {
-		err := godotenv.Load()
+		err := godotenv.Load(".env.dev")
 		if err != nil {
 			return AppConfig{}, err
 		}
