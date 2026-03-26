@@ -2,6 +2,7 @@ package dto
 
 import (
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -45,4 +46,65 @@ func (r *BecomeSellerRequest) ValidateBecomeSellerRequest() error {
 		return errors.New("must provide either routing number or swift code")
 	}
 	return nil
+}
+
+// Profile
+
+type UserProfileResponse struct {
+	Uuid      uuid.UUID `json:"uuid"`
+	FirstName string    `json:"firstName"`
+	LastName  string    `json:"lastName"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	UserType  string    `json:"userType"`
+	Verified  bool      `json:"verified"`
+}
+
+type UpdateProfileRequest struct {
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Phone     string `json:"phone"`
+}
+
+// Cart
+
+type AddToCartRequest struct {
+	ProductId uuid.UUID `json:"productId"`
+	SellerId  uuid.UUID `json:"sellerId"`
+	Name      string    `json:"name"`
+	ImageUrl  string    `json:"imageUrl"`
+	Price     float64   `json:"price"`
+	Quantity  uint      `json:"quantity"`
+}
+
+type CartItemResponse struct {
+	Id        uint      `json:"id"`
+	ProductId uuid.UUID `json:"productId"`
+	SellerId  uuid.UUID `json:"sellerId"`
+	Name      string    `json:"name"`
+	ImageUrl  string    `json:"imageUrl"`
+	Price     float64   `json:"price"`
+	Quantity  uint      `json:"quantity"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// Orders
+
+type OrderItemResponse struct {
+	ProductId uuid.UUID `json:"productId"`
+	SellerId  uuid.UUID `json:"sellerId"`
+	Name      string    `json:"name"`
+	ImageUrl  string    `json:"imageUrl"`
+	Price     float64   `json:"price"`
+	Quantity  uint      `json:"quantity"`
+}
+
+type OrderResponse struct {
+	Uuid       uuid.UUID           `json:"uuid"`
+	Status     string              `json:"status"`
+	TotalPrice float64             `json:"totalPrice"`
+	Items      []OrderItemResponse `json:"items"`
+	CreatedAt  time.Time           `json:"createdAt"`
+	UpdatedAt  time.Time           `json:"updatedAt"`
 }

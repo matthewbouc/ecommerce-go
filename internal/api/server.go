@@ -22,7 +22,7 @@ func StartServer(config config.AppConfig) {
 	}
 	log.Println("database connection established")
 
-	err = database.AutoMigrate(&domain.User{})
+	err = database.AutoMigrate(&domain.User{}, &domain.BankAccount{}, &domain.CartItem{}, &domain.Order{}, &domain.OrderItem{})
 	if err != nil {
 		log.Fatalf("database migration fatal error: %v\n", err)
 	}

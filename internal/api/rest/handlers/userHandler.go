@@ -7,6 +7,7 @@ import (
 	"ecommerce/internal/service"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type UserHandler struct {
@@ -20,6 +21,8 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	userSvc := service.UserService{
 		UserRepository:        repository.NewUserRepository(rh.DB),
 		BankAccountRepository: repository.NewBankAccountRepository(rh.DB),
+		CartRepository:        repository.NewCartRepository(rh.DB),
+		OrderRepository:       repository.NewOrderRepository(rh.DB),
 		Auth:                  rh.Auth,
 		Config:                rh.Config,
 		SmsClient:             rh.SmsClient,
@@ -44,7 +47,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pvtUser.Post("/verify", userHandler.Verify)
 
 	pvtUser.Get("/profile", userHandler.GetProfile)
-	pvtUser.Post("/profile", userHandler.CreateProfile)
+	pvtUser.Post("/profile", userHandler.UpdateProfile)
 
 	pvtUser.Get("/cart", userHandler.GetCart)
 	pvtUser.Post("/cart", userHandler.AddToCart)
@@ -80,6 +83,7 @@ func (h *UserHandler) Register(ctx fiber.Ctx) error {
 		"token":   token,
 	})
 }
+
 func (h *UserHandler) Login(ctx fiber.Ctx) error {
 	loginAttempt := dto.LoginRequest{}
 
@@ -132,6 +136,7 @@ func (h *UserHandler) GetVerificationCode(ctx fiber.Ctx) error {
 		"code":    code,
 	})
 }
+
 func (h *UserHandler) Verify(ctx fiber.Ctx) error {
 
 	user := h.service.Auth.GetCurrentUser(ctx)
@@ -156,36 +161,111 @@ func (h *UserHandler) Verify(ctx fiber.Ctx) error {
 		"message": "code successfully verified",
 	})
 }
+
 func (h *UserHandler) GetProfile(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+	profile, err := h.service.GetProfile(user.Uuid)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "success",
+		"profile": profile,
 	})
 }
-func (h *UserHandler) CreateProfile(ctx fiber.Ctx) error {
+
+func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+
+	var req dto.UpdateProfileRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "please provide valid input",
+		})
+	}
+
+	if err := h.service.UpdateProfile(user.Uuid, req); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "success",
+		"message": "profile updated",
 	})
 }
-func (h *UserHandler) AddToCart(ctx fiber.Ctx) error {
-	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "success",
-	})
-}
+
 func (h *UserHandler) GetCart(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+	items, err := h.service.GetCart(user.Uuid)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "success",
+		"cart":    items,
 	})
 }
+
+func (h *UserHandler) AddToCart(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+
+	var req dto.AddToCartRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "please provide valid input",
+		})
+	}
+
+	if err := h.service.AddToCart(user.Uuid, req); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "item added to cart",
+	})
+}
+
 func (h *UserHandler) GetOrders(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+	orders, err := h.service.GetOrders(user.Uuid)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "success",
+		"orders":  orders,
 	})
 }
+
 func (h *UserHandler) GetOrder(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+
+	orderUuid, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "invalid order id",
+		})
+	}
+
+	order, err := h.service.GetOrderById(user.Uuid, orderUuid)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "success",
+		"order":   order,
 	})
 }
+
 func (h *UserHandler) BecomeSeller(ctx fiber.Ctx) error {
 
 	user := h.service.Auth.GetCurrentUser(ctx)

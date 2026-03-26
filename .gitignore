@@ -2,6 +2,7 @@
 .env.dev
 .ds_store
 
+docs/
 package-lock.json
 package.json
 node_modules/
