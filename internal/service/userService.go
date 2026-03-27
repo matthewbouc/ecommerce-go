@@ -92,7 +92,7 @@ func (userService UserService) findUserByUuid(uuid uuid.UUID) (*domain.User, err
 	return foundUser, nil
 }
 
-func (userService UserService) isActiveUser(uuid uuid.UUID) bool {
+func (userService UserService) IsActiveUser(uuid uuid.UUID) bool {
 	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
 	return err == nil && !foundUser.DeletedAt.Valid
 }
@@ -166,6 +166,8 @@ func (userService UserService) VerifyCode(Uuid uuid.UUID, code int) error {
 	return nil
 }
 
+// Profile
+
 func (userService UserService) GetProfile(userUuid uuid.UUID) (*dto.UserProfileResponse, error) {
 	user, err := userService.findUserByUuid(userUuid)
 	if err != nil {
@@ -221,6 +223,15 @@ func (userService UserService) GetCart(userUuid uuid.UUID) ([]dto.CartItemRespon
 		}
 	}
 	return response, nil
+}
+
+func (userService UserService) RemoveFromCart(userUuid uuid.UUID, cartItemId uint) error {
+	user, err := userService.findUserByUuid(userUuid)
+	if err != nil {
+		return err
+	}
+	// Ownership is enforced inside the repository by scoping the delete to user.Id.
+	return userService.CartRepository.DeleteCartItemByIdAndUser(cartItemId, user.Id)
 }
 
 func (userService UserService) AddToCart(userUuid uuid.UUID, input dto.AddToCartRequest) error {

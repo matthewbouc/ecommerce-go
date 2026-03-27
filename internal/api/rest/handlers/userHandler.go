@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"ecommerce/internal/api/rest"
+	"ecommerce/internal/domain"
 	"ecommerce/internal/dto"
 	"ecommerce/internal/repository"
 	"ecommerce/internal/service"
+	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -38,8 +40,8 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	user.Post("/login", userHandler.Login)
 
 	// #### private ####
-	// TODO, eventually want to verify role and that user is not deleted. Add additional handlers for that logic?
-	pvtUser := user.Group("/", rh.Auth.Authorize)
+	// Authorize validates the JWT; requireActiveUser ensures the account hasn't been soft-deleted.
+	pvtUser := user.Group("/", rh.Auth.Authorize, userHandler.requireActiveUser)
 
 	pvtUser.Delete("/", userHandler.DeleteUser)
 
@@ -51,11 +53,13 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 
 	pvtUser.Get("/cart", userHandler.GetCart)
 	pvtUser.Post("/cart", userHandler.AddToCart)
+	pvtUser.Delete("/cart/:id", userHandler.RemoveFromCart)
 
 	pvtUser.Get("/order", userHandler.GetOrders)
 	pvtUser.Get("/order/:id", userHandler.GetOrder)
 
-	pvtUser.Post("/become-seller", userHandler.BecomeSeller)
+	// become-seller is restricted to buyers; sellers cannot call it twice.
+	pvtUser.Post("/become-seller", rh.Auth.RequireRole(domain.BUYER), userHandler.BecomeSeller)
 }
 
 func (h *UserHandler) Register(ctx fiber.Ctx) error {
@@ -263,6 +267,38 @@ func (h *UserHandler) GetOrder(ctx fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "success",
 		"order":   order,
+	})
+}
+
+// requireActiveUser rejects requests from soft-deleted accounts.
+// It runs after Authorize so ctx.Locals("user") is already populated.
+func (h *UserHandler) requireActiveUser(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+	if !h.service.IsActiveUser(user.Uuid) {
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "account not found or has been deleted",
+		})
+	}
+	return ctx.Next()
+}
+
+func (h *UserHandler) RemoveFromCart(ctx fiber.Ctx) error {
+	user := h.service.Auth.GetCurrentUser(ctx)
+
+	itemId, err := strconv.ParseUint(ctx.Params("id"), 10, 64)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "invalid cart item id",
+		})
+	}
+
+	if err := h.service.RemoveFromCart(user.Uuid, uint(itemId)); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "item removed from cart",
 	})
 }
 

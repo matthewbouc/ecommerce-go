@@ -111,6 +111,18 @@ func (a *Auth) RefreshJwt(ctx fiber.Ctx) error {
 	return nil
 }
 
+func (a *Auth) RequireRole(role domain.UserType) fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		user := a.GetCurrentUser(ctx)
+		if user.UserType != role {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"message": "forbidden: insufficient role",
+			})
+		}
+		return ctx.Next()
+	}
+}
+
 func (a *Auth) Authorize(ctx fiber.Ctx) error {
 
 	authHeader := ctx.Get("Authorization", "")
