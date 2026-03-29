@@ -22,7 +22,17 @@ func StartServer(config config.AppConfig) {
 	}
 	log.Println("database connection established")
 
-	err = database.AutoMigrate(&domain.User{}, &domain.BankAccount{}, &domain.CartItem{}, &domain.Order{}, &domain.OrderItem{})
+	// Category must be migrated before Product because Product has a FK to Category.Uuid.
+	// GORM's AutoMigrate doesn't resolve FK ordering automatically — order matters here.
+	err = database.AutoMigrate(
+		&domain.User{},
+		&domain.BankAccount{},
+		&domain.CartItem{},
+		&domain.Order{},
+		&domain.OrderItem{},
+		&domain.Category{},
+		&domain.Product{},
+	)
 	if err != nil {
 		log.Fatalf("database migration fatal error: %v\n", err)
 	}

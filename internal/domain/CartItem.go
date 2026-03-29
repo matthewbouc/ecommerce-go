@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,4 +20,26 @@ type CartItem struct {
 	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	User      User      `json:"-" gorm:"foreignKey:UserId"`
+}
+
+func (c *CartItem) Validate() error {
+	if c.UserId == 0 {
+		return errors.New("user ID is required")
+	}
+	if c.ProductId == uuid.Nil {
+		return errors.New("product ID is required")
+	}
+	if c.SellerId == uuid.Nil {
+		return errors.New("seller ID is required")
+	}
+	if c.Name == "" {
+		return errors.New("product name is required")
+	}
+	if c.Price <= 0 {
+		return errors.New("price must be greater than zero")
+	}
+	if c.Quantity == 0 {
+		return errors.New("quantity must be at least 1")
+	}
+	return nil
 }

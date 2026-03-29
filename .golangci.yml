@@ -1,0 +1,20 @@
+linters:
+  enable:
+    - errcheck       # unhandled errors
+    - govet          # suspicious constructs (shadow, printf mismatches, etc.)
+    - staticcheck    # broad static analysis
+    - ineffassign    # assignments whose value is never used
+    - gosimple       # simplification suggestions
+    - unused         # unused code
+
+linters-settings:
+  errcheck:
+    # Ignore errors on defer Close() calls — common pattern in this codebase
+    ignore: "Close"
+
+issues:
+  # Don't complain about unhandled errors in test helpers
+  exclude-rules:
+    - path: "_test\\.go"
+      linters:
+        - errcheck

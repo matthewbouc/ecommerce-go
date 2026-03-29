@@ -1,8 +1,8 @@
 .idea/
 .env.dev
 .ds_store
-
-docs/
 package-lock.json
 package.json
+CLAUDE.local.md
 node_modules/
+docs/

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +37,27 @@ func (o *Order) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+func (o *Order) Validate() error {
+	if o.UserId == 0 {
+		return errors.New("user ID is required")
+	}
+	if o.TotalPrice < 0 {
+		return errors.New("total price cannot be negative")
+	}
+	if o.Status != "" && !o.Status.IsValidStatus() {
+		return errors.New("invalid order status")
+	}
+	return nil
+}
+
+func (s OrderStatus) IsValidStatus() bool {
+	switch s {
+	case OrderPending, OrderProcessing, OrderShipped, OrderDelivered, OrderCancelled:
+		return true
+	}
+	return false
+}
+
 type OrderItem struct {
 	Id        uint      `json:"id" gorm:"column:id;primaryKey"`
 	OrderId   uint      `json:"order_id" gorm:"column:order_id;not null"`
@@ -47,4 +69,26 @@ type OrderItem struct {
 	Quantity  uint      `json:"quantity" gorm:"column:quantity"`
 	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+}
+
+func (oi *OrderItem) Validate() error {
+	if oi.OrderId == 0 {
+		return errors.New("order ID is required")
+	}
+	if oi.ProductId == uuid.Nil {
+		return errors.New("product ID is required")
+	}
+	if oi.SellerId == uuid.Nil {
+		return errors.New("seller ID is required")
+	}
+	if oi.Name == "" {
+		return errors.New("product name is required")
+	}
+	if oi.Price <= 0 {
+		return errors.New("price must be greater than zero")
+	}
+	if oi.Quantity == 0 {
+		return errors.New("quantity must be at least 1")
+	}
+	return nil
 }

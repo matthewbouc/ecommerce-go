@@ -50,3 +50,38 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 func (ut UserType) IsValidUserType() bool {
 	return ut == BUYER || ut == SELLER
 }
+
+func (u *User) Validate() error {
+	if u.FirstName == "" {
+		return errors.New("first name is required")
+	}
+	if u.LastName == "" {
+		return errors.New("last name is required")
+	}
+	if u.Email == "" {
+		return errors.New("email is required")
+	}
+	// Basic sanity check — a proper email regex is overkill at the domain layer
+	if !containsAt(u.Email) {
+		return errors.New("email is invalid")
+	}
+	if u.Password == "" {
+		return errors.New("password is required")
+	}
+	if u.Phone == "" {
+		return errors.New("phone number is required")
+	}
+	if u.UserType != "" && !u.UserType.IsValidUserType() {
+		return errors.New("user type must be 'buyer' or 'seller'")
+	}
+	return nil
+}
+
+func containsAt(email string) bool {
+	for _, c := range email {
+		if c == '@' {
+			return true
+		}
+	}
+	return false
+}
