@@ -39,13 +39,8 @@
             },
             "url": {
               "raw": "{{BASE_URL}}/user/register",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "register"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "register"]
             }
           },
           "response": []
@@ -80,13 +75,8 @@
             },
             "url": {
               "raw": "{{BASE_URL}}/user/login",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "login"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "login"]
             }
           },
           "response": []
@@ -102,12 +92,8 @@
             },
             "url": {
               "raw": "{{BASE_URL}}/user",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user"]
             }
           },
           "response": []
@@ -119,13 +105,8 @@
             "header": [],
             "url": {
               "raw": "{{BASE_URL}}/user/verify",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "verify"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "verify"]
             }
           },
           "response": []
@@ -146,13 +127,8 @@
             },
             "url": {
               "raw": "{{BASE_URL}}/user/verify",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "verify"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "verify"]
             }
           },
           "response": []
@@ -164,13 +140,8 @@
             "header": [],
             "url": {
               "raw": "{{BASE_URL}}/user/profile",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "profile"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "profile"]
             }
           },
           "response": []
@@ -191,13 +162,8 @@
             },
             "url": {
               "raw": "{{BASE_URL}}/user/profile",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "profile"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "profile"]
             }
           },
           "response": []
@@ -209,13 +175,8 @@
             "header": [],
             "url": {
               "raw": "{{BASE_URL}}/user/cart",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "cart"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "cart"]
             }
           },
           "response": []
@@ -227,7 +188,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"productId\": \"00000000-0000-0000-0000-000000000001\",\n    \"sellerId\": \"00000000-0000-0000-0000-000000000002\",\n    \"name\": \"Sample Product\",\n    \"imageUrl\": \"https://example.com/image.jpg\",\n    \"price\": 29.99,\n    \"quantity\": 1\n}",
+              "raw": "{\n    \"productId\": \"{{product_uuid}}\",\n    \"sellerId\": \"{{seller_uuid}}\",\n    \"name\": \"Sample Product\",\n    \"imageUrl\": \"https://example.com/image.jpg\",\n    \"price\": 29.99,\n    \"quantity\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -236,13 +197,21 @@
             },
             "url": {
               "raw": "{{BASE_URL}}/user/cart",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "cart"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "cart"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove from Cart",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/user/cart/{{cart_item_id}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "cart", "{{cart_item_id}}"]
             }
           },
           "response": []
@@ -254,13 +223,8 @@
             "header": [],
             "url": {
               "raw": "{{BASE_URL}}/user/order",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "order"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "order"]
             }
           },
           "response": []
@@ -272,20 +236,28 @@
             "header": [],
             "url": {
               "raw": "{{BASE_URL}}/user/order/{{order_uuid}}",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "order",
-                "{{order_uuid}}"
-              ]
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "order", "{{order_uuid}}"]
             }
           },
           "response": []
         },
         {
           "name": "Become Seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = pm.response.json();",
+                  "pm.environment.set(\"seller_token\", jsonData.token);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [],
@@ -300,13 +272,218 @@
             },
             "url": {
               "raw": "{{BASE_URL}}/user/become-seller",
-              "host": [
-                "{{BASE_URL}}"
-              ],
-              "path": [
-                "user",
-                "become-seller"
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "become-seller"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        {
+          "name": "Get Products",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/catalog/products?page=1&pageSize=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["catalog", "products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" },
+                { "key": "sellerId", "value": "{{seller_uuid}}", "disabled": true },
+                { "key": "categoryId", "value": "{{category_uuid}}", "disabled": true }
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/catalog/products/{{product_uuid}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["catalog", "products", "{{product_uuid}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/catalog/categories",
+              "host": ["{{BASE_URL}}"],
+              "path": ["catalog", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = pm.response.json();",
+                  "if (jsonData.product && jsonData.product.uuid) {",
+                  "    pm.environment.set(\"product_uuid\", jsonData.product.uuid);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{seller_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Sample Product\",\n    \"description\": \"A great product description\",\n    \"price\": 29.99,\n    \"stock\": 100,\n    \"categoryId\": \"{{category_uuid}}\",\n    \"imageUrl\": \"https://example.com/image.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/catalog/products",
+              "host": ["{{BASE_URL}}"],
+              "path": ["catalog", "products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{seller_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Product Name\",\n    \"description\": \"Updated description\",\n    \"price\": 24.99,\n    \"stock\": 50,\n    \"categoryId\": \"{{category_uuid}}\",\n    \"imageUrl\": \"https://example.com/image.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/catalog/products/{{product_uuid}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["catalog", "products", "{{product_uuid}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{seller_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/catalog/products/{{product_uuid}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["catalog", "products", "{{product_uuid}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = pm.response.json();",
+                  "if (jsonData.category && jsonData.category.uuid) {",
+                  "    pm.environment.set(\"category_uuid\", jsonData.category.uuid);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{seller_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Electronics\",\n    \"description\": \"Electronic devices and accessories\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/catalog/categories",
+              "host": ["{{BASE_URL}}"],
+              "path": ["catalog", "categories"]
             }
           },
           "response": []
@@ -331,9 +508,7 @@
         "type": "text/javascript",
         "packages": {},
         "requests": {},
-        "exec": [
-          ""
-        ]
+        "exec": [""]
       }
     },
     {
@@ -342,20 +517,18 @@
         "type": "text/javascript",
         "packages": {},
         "requests": {},
-        "exec": [
-          ""
-        ]
+        "exec": [""]
       }
     }
   ],
   "variable": [
-    {
-      "key": "BASE_URL",
-      "value": ""
-    },
-    {
-      "key": "order_uuid",
-      "value": ""
-    }
+    { "key": "BASE_URL", "value": "http://localhost:3000" },
+    { "key": "user_token", "value": "" },
+    { "key": "seller_token", "value": "" },
+    { "key": "seller_uuid", "value": "" },
+    { "key": "product_uuid", "value": "" },
+    { "key": "category_uuid", "value": "" },
+    { "key": "cart_item_id", "value": "" },
+    { "key": "order_uuid", "value": "" }
   ]
 }
