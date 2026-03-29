@@ -3,6 +3,7 @@ package rest
 import (
 	"ecommerce/config"
 	"ecommerce/internal/helper"
+	"ecommerce/internal/service"
 	"ecommerce/pkg/notification/sms"
 
 	"github.com/gofiber/fiber/v3"
@@ -10,9 +11,10 @@ import (
 )
 
 type RestHandler struct {
-	App       *fiber.App
-	DB        *gorm.DB
-	Auth      helper.Auth
-	Config    config.AppConfig
-	SmsClient sms.SmsClient
+	App        *fiber.App
+	DB         *gorm.DB
+	Auth       helper.Auth
+	Config     config.AppConfig
+	SmsClient  sms.SmsClient
+	CatalogSvc service.CatalogService
 }

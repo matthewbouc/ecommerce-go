@@ -9,15 +9,33 @@ import (
 	"github.com/google/uuid"
 )
 
-type CatalogService struct {
-	CatalogRepository repository.CatalogRepository
+// CatalogService is the public interface consumed by the REST handler and
+// the gRPC server. Both call the same business logic through this contract.
+type CatalogService interface {
+	CreateProduct(sellerUuid uuid.UUID, input dto.CreateProductRequest) (dto.ProductResponse, error)
+	GetProduct(productUuid uuid.UUID) (dto.ProductResponse, error)
+	GetProducts(req dto.GetProductsRequest) (dto.GetProductsResponse, error)
+	UpdateProduct(sellerUuid uuid.UUID, productUuid uuid.UUID, input dto.UpdateProductRequest) (dto.ProductResponse, error)
+	DeleteProduct(sellerUuid uuid.UUID, productUuid uuid.UUID) error
+	CreateCategory(input dto.CreateCategoryRequest) (dto.CategoryResponse, error)
+	GetCategories() ([]dto.CategoryResponse, error)
+}
+
+// catalogServiceImpl is the concrete implementation. Unexported — callers
+// receive a CatalogService interface from NewCatalogService.
+type catalogServiceImpl struct {
+	repo repository.CatalogRepository
+}
+
+func NewCatalogService(repo repository.CatalogRepository) CatalogService {
+	return &catalogServiceImpl{repo: repo}
 }
 
 // ─────────────────────────────────────────────
 // Products
 // ─────────────────────────────────────────────
 
-func (s CatalogService) CreateProduct(sellerUuid uuid.UUID, input dto.CreateProductRequest) (dto.ProductResponse, error) {
+func (s *catalogServiceImpl) CreateProduct(sellerUuid uuid.UUID, input dto.CreateProductRequest) (dto.ProductResponse, error) {
 	product := domain.Product{
 		SellerID:    sellerUuid,
 		Name:        input.Name,
@@ -32,14 +50,14 @@ func (s CatalogService) CreateProduct(sellerUuid uuid.UUID, input dto.CreateProd
 		return dto.ProductResponse{}, err
 	}
 
-	created, err := s.CatalogRepository.CreateProduct(product)
+	created, err := s.repo.CreateProduct(product)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
 
 	// Fetch the full record so the response includes the populated Category association.
 	// CreateProduct returns the saved product but GORM doesn't preload associations on insert.
-	full, err := s.CatalogRepository.GetProductByUuid(created.Uuid)
+	full, err := s.repo.GetProductByUuid(created.Uuid)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
@@ -47,16 +65,16 @@ func (s CatalogService) CreateProduct(sellerUuid uuid.UUID, input dto.CreateProd
 	return toProductResponse(*full), nil
 }
 
-func (s CatalogService) GetProduct(productUuid uuid.UUID) (dto.ProductResponse, error) {
-	product, err := s.CatalogRepository.GetProductByUuid(productUuid)
+func (s *catalogServiceImpl) GetProduct(productUuid uuid.UUID) (dto.ProductResponse, error) {
+	product, err := s.repo.GetProductByUuid(productUuid)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
 	return toProductResponse(*product), nil
 }
 
-func (s CatalogService) GetProducts(req dto.GetProductsRequest) (dto.GetProductsResponse, error) {
-	products, total, err := s.CatalogRepository.GetProducts(repository.ProductFilter{
+func (s *catalogServiceImpl) GetProducts(req dto.GetProductsRequest) (dto.GetProductsResponse, error) {
+	products, total, err := s.repo.GetProducts(repository.ProductFilter{
 		SellerID:   req.SellerID,
 		CategoryID: req.CategoryID,
 		Page:       req.Page,
@@ -77,14 +95,14 @@ func (s CatalogService) GetProducts(req dto.GetProductsRequest) (dto.GetProducts
 	}, nil
 }
 
-func (s CatalogService) UpdateProduct(sellerUuid uuid.UUID, productUuid uuid.UUID, input dto.UpdateProductRequest) (dto.ProductResponse, error) {
-	product, err := s.CatalogRepository.GetProductByUuid(productUuid)
+func (s *catalogServiceImpl) UpdateProduct(sellerUuid uuid.UUID, productUuid uuid.UUID, input dto.UpdateProductRequest) (dto.ProductResponse, error) {
+	product, err := s.repo.GetProductByUuid(productUuid)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
 
 	// Authorization: only the seller who owns the product can update it.
-	// This check belongs here in the service — it's a business rule, not an HTTP concern.
+	// This check belongs in the service — it's a business rule, not an HTTP concern.
 	if product.SellerID != sellerUuid {
 		return dto.ProductResponse{}, errors.New("unauthorized: product does not belong to this seller")
 	}
@@ -100,7 +118,7 @@ func (s CatalogService) UpdateProduct(sellerUuid uuid.UUID, productUuid uuid.UUI
 		return dto.ProductResponse{}, err
 	}
 
-	if err := s.CatalogRepository.UpdateProduct(product); err != nil {
+	if err := s.repo.UpdateProduct(product); err != nil {
 		return dto.ProductResponse{}, err
 	}
 
@@ -108,8 +126,8 @@ func (s CatalogService) UpdateProduct(sellerUuid uuid.UUID, productUuid uuid.UUI
 	return toProductResponse(*product), nil
 }
 
-func (s CatalogService) DeleteProduct(sellerUuid uuid.UUID, productUuid uuid.UUID) error {
-	product, err := s.CatalogRepository.GetProductByUuid(productUuid)
+func (s *catalogServiceImpl) DeleteProduct(sellerUuid uuid.UUID, productUuid uuid.UUID) error {
+	product, err := s.repo.GetProductByUuid(productUuid)
 	if err != nil {
 		return err
 	}
@@ -119,14 +137,14 @@ func (s CatalogService) DeleteProduct(sellerUuid uuid.UUID, productUuid uuid.UUI
 		return errors.New("unauthorized: product does not belong to this seller")
 	}
 
-	return s.CatalogRepository.DeleteProduct(product)
+	return s.repo.DeleteProduct(product)
 }
 
 // ─────────────────────────────────────────────
 // Categories
 // ─────────────────────────────────────────────
 
-func (s CatalogService) CreateCategory(input dto.CreateCategoryRequest) (dto.CategoryResponse, error) {
+func (s *catalogServiceImpl) CreateCategory(input dto.CreateCategoryRequest) (dto.CategoryResponse, error) {
 	category := domain.Category{
 		Name:        input.Name,
 		Description: input.Description,
@@ -136,7 +154,7 @@ func (s CatalogService) CreateCategory(input dto.CreateCategoryRequest) (dto.Cat
 		return dto.CategoryResponse{}, err
 	}
 
-	created, err := s.CatalogRepository.CreateCategory(category)
+	created, err := s.repo.CreateCategory(category)
 	if err != nil {
 		return dto.CategoryResponse{}, err
 	}
@@ -144,8 +162,8 @@ func (s CatalogService) CreateCategory(input dto.CreateCategoryRequest) (dto.Cat
 	return toCategoryResponse(created), nil
 }
 
-func (s CatalogService) GetCategories() ([]dto.CategoryResponse, error) {
-	categories, err := s.CatalogRepository.GetCategories()
+func (s *catalogServiceImpl) GetCategories() ([]dto.CategoryResponse, error) {
+	categories, err := s.repo.GetCategories()
 	if err != nil {
 		return nil, err
 	}

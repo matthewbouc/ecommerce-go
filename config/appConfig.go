@@ -9,6 +9,7 @@ import (
 
 type AppConfig struct {
 	ServerPort     string
+	GrpcPort       string
 	DatabaseConfig string
 	AuthSecret     string
 	TwilioToken    string
@@ -28,6 +29,11 @@ func SetupEnv() (cfg AppConfig, err error) {
 	httpPort := os.Getenv("HTTP_PORT")
 	if httpPort == "" {
 		return AppConfig{}, errors.New("no HTTP_PORT environment variable set")
+	}
+
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = ":50051"
 	}
 
 	databaseConfig := os.Getenv("DATABASE_CONFIG")
@@ -57,6 +63,7 @@ func SetupEnv() (cfg AppConfig, err error) {
 
 	return AppConfig{
 		ServerPort:     httpPort,
+		GrpcPort:       grpcPort,
 		DatabaseConfig: databaseConfig,
 		AuthSecret:     authSecret,
 		TwilioAccount:  twilioAccount,

@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+// The package name is used by protobuf internally to avoid name collisions
+// across different .proto files in larger projects.
+package catalog;
+
+// go_package tells protoc where to put the generated Go files and what
+// Go package path they should declare. Format: "module/path;package_name"
+option go_package = "ecommerce/proto/catalog;catalogpb";
+
+// ─────────────────────────────────────────────
+// Domain Messages
+// ─────────────────────────────────────────────
+
+message Product {
+  string uuid        = 1;
+  string seller_id   = 2; // uuid of the seller who owns this product
+  string name        = 3;
+  string description = 4;
+  double price       = 5; // double (float64) for monetary precision
+  int32  stock       = 6;
+  string category_id = 7; // uuid of the category
+  string image_url   = 8;
+}
+
+message Category {
+  string uuid        = 1;
+  string name        = 2;
+  string description = 3;
+}
+
+// ─────────────────────────────────────────────
+// GetProduct — fetch a single product by UUID
+// ─────────────────────────────────────────────
+
+message GetProductRequest {
+  string uuid = 1;
+}
+
+message GetProductResponse {
+  Product product = 1;
+}
+
+// ─────────────────────────────────────────────
+// GetProducts — list products, optionally filtered by seller
+// Used by: Order Service (validate cart items), Catalog REST layer
+// ─────────────────────────────────────────────
+
+message GetProductsRequest {
+  string seller_id = 1; // optional: filter by seller
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+message GetProductsResponse {
+  repeated Product products = 1; // repeated = []Product in Go
+  int32            total    = 2; // total count for pagination
+}
+
+// ─────────────────────────────────────────────
+// CreateProduct — seller creates a new product
+// ─────────────────────────────────────────────
+
+message CreateProductRequest {
+  string seller_id   = 1;
+  string name        = 2;
+  string description = 3;
+  double price       = 4;
+  int32  stock       = 5;
+  string category_id = 6;
+  string image_url   = 7;
+}
+
+message CreateProductResponse {
+  Product product = 1;
+}
+
+// ─────────────────────────────────────────────
+// UpdateProduct — seller updates their product
+// ─────────────────────────────────────────────
+
+message UpdateProductRequest {
+  string uuid        = 1; // identifies which product to update
+  string name        = 2;
+  string description = 3;
+  double price       = 4;
+  int32  stock       = 5;
+  string category_id = 6;
+  string image_url   = 7;
+}
+
+message UpdateProductResponse {
+  Product product = 1;
+}
+
+// ─────────────────────────────────────────────
+// DeleteProduct — seller removes their product
+// ─────────────────────────────────────────────
+
+message DeleteProductRequest {
+  string uuid      = 1;
+  string seller_id = 2; // passed so the server can authorize: seller owns product
+}
+
+message DeleteProductResponse {
+  bool success = 1;
+}
+
+// ─────────────────────────────────────────────
+// Service Definition
+// This is the interface both client and server are bound to.
+// The Order Service will use the generated client to call these methods.
+// We will implement the server side in internal/api/grpc/
+// ─────────────────────────────────────────────
+
+service CatalogService {
+  // Used by Order Service at checkout to validate product + get authoritative price
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+
+  // Used by REST layer and Order Service (e.g. "get all products for this seller")
+  rpc GetProducts(GetProductsRequest) returns (GetProductsResponse);
+
+  // Called by Catalog REST handler after auth/validation
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+
+  // Called by Catalog REST handler after auth/validation
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+
+  // Called by Catalog REST handler after auth/validation
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse);
+}
