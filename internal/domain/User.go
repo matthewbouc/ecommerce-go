@@ -11,8 +11,8 @@ import (
 type UserType string
 
 const (
-	SELLER = "seller"
-	BUYER  = "buyer"
+	SELLER UserType = "seller"
+	BUYER  UserType = "buyer"
 )
 
 type User struct {

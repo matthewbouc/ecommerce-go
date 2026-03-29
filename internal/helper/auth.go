@@ -23,7 +23,7 @@ func SetupAuth(secret string) Auth {
 	}
 }
 
-func (a *Auth) HashPassword(password string) (string, error) {
+func (a Auth) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		// TODO log the actual error
@@ -32,7 +32,7 @@ func (a *Auth) HashPassword(password string) (string, error) {
 	return string(bytes), err
 }
 
-func (a *Auth) VerifyPassword(password string, hashedPassword string) error {
+func (a Auth) VerifyPassword(password string, hashedPassword string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	if err != nil {
 		// TODO - Add error logging
@@ -41,7 +41,7 @@ func (a *Auth) VerifyPassword(password string, hashedPassword string) error {
 	return nil
 }
 
-func (a *Auth) GenerateJwt(id uuid.UUID, email string, role domain.UserType) (string, error) {
+func (a Auth) GenerateJwt(id uuid.UUID, email string, role domain.UserType) (string, error) {
 	if id == uuid.Nil || email == "" || role == "" {
 		return "", errors.New("required inputs are missing to generate tokens")
 	}
@@ -62,7 +62,7 @@ func (a *Auth) GenerateJwt(id uuid.UUID, email string, role domain.UserType) (st
 	return tokenStr, nil
 }
 
-func (a *Auth) VerifyJwt(tokenString string) (domain.User, error) {
+func (a Auth) VerifyJwt(tokenString string) (domain.User, error) {
 
 	tokenArray := strings.Split(tokenString, " ")
 	if len(tokenArray) != 2 || tokenArray[0] != "Bearer" {
@@ -80,38 +80,48 @@ func (a *Auth) VerifyJwt(tokenString string) (domain.User, error) {
 		return domain.User{}, errors.New("invalid token")
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-
-		if float64(time.Now().Unix()) > claims["exp"].(float64) {
-			return domain.User{}, errors.New("token is expired")
-		}
-
-		strUuid := claims["userId"].(string)
-		userUuid, err := uuid.Parse(strUuid)
-		if err != nil {
-			return domain.User{}, errors.New("invalid uuid")
-		}
-
-		userRole := domain.UserType(claims["role"].(string))
-		if !userRole.IsValidUserType() {
-			return domain.User{}, errors.New("invalid user type")
-		}
-
-		user := domain.User{
-			Uuid:     userUuid,
-			Email:    claims["email"].(string),
-			UserType: userRole,
-		}
-		return user, nil
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return domain.User{}, errors.New("token verification failed")
 	}
-	return domain.User{}, errors.New("token verification failed")
+
+	// Use comma-ok on every claim — a missing or wrong-typed claim must
+	// return an error, not panic.
+	strUuid, ok := claims["userId"].(string)
+	if !ok || strUuid == "" {
+		return domain.User{}, errors.New("invalid token claims")
+	}
+	userUuid, err := uuid.Parse(strUuid)
+	if err != nil {
+		return domain.User{}, errors.New("invalid token claims")
+	}
+
+	email, ok := claims["email"].(string)
+	if !ok || email == "" {
+		return domain.User{}, errors.New("invalid token claims")
+	}
+
+	roleStr, ok := claims["role"].(string)
+	if !ok || roleStr == "" {
+		return domain.User{}, errors.New("invalid token claims")
+	}
+	userRole := domain.UserType(roleStr)
+	if !userRole.IsValidUserType() {
+		return domain.User{}, errors.New("invalid user role")
+	}
+
+	return domain.User{
+		Uuid:     userUuid,
+		Email:    email,
+		UserType: userRole,
+	}, nil
 }
 
-func (a *Auth) RefreshJwt(ctx fiber.Ctx) error {
+func (a Auth) RefreshJwt(ctx fiber.Ctx) error {
 	return nil
 }
 
-func (a *Auth) RequireRole(role domain.UserType) fiber.Handler {
+func (a Auth) RequireRole(role domain.UserType) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		user := a.GetCurrentUser(ctx)
 		if user.UserType != role {
@@ -123,28 +133,30 @@ func (a *Auth) RequireRole(role domain.UserType) fiber.Handler {
 	}
 }
 
-func (a *Auth) Authorize(ctx fiber.Ctx) error {
-
+func (a Auth) Authorize(ctx fiber.Ctx) error {
 	authHeader := ctx.Get("Authorization", "")
 
 	user, err := a.VerifyJwt(authHeader)
-
-	if err == nil && user.Uuid != uuid.Nil {
-		ctx.Locals("user", user)
-		return ctx.Next()
+	if err != nil || user.Uuid == uuid.Nil {
+		// TODO: Log internally (replace with structured logger when available).
+		fmt.Printf("[auth] authorization failed: %v\n", err)
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "unauthorized",
+		})
 	}
 
-	return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-		"message": "authorization failed",
-		"reason":  err,
-	})
+	ctx.Locals("user", user)
+	return ctx.Next()
 }
 
-func (a *Auth) GetCurrentUser(ctx fiber.Ctx) domain.User {
-	user := ctx.Locals("user")
-	return user.(domain.User)
+func (a Auth) GetCurrentUser(ctx fiber.Ctx) domain.User {
+	user, ok := ctx.Locals("user").(domain.User)
+	if !ok {
+		panic("GetCurrentUser: user not found in context; ensure Authorize middleware is applied to this route")
+	}
+	return user
 }
 
-func (a *Auth) GenerateCode() (int, error) {
+func (a Auth) GenerateCode() (int, error) {
 	return RandomNumbers(6)
 }

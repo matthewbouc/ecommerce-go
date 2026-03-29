@@ -22,9 +22,8 @@ func NewBankAccountRepository(db *gorm.DB) BankAccountRepository {
 }
 
 func (r *bankAccountRepository) CreateBankAccount(bankAccount domain.BankAccount) (domain.BankAccount, error) {
-	err := r.db.Create(&bankAccount).Error
-	if err != nil {
-		return domain.BankAccount{}, fmt.Errorf("create user error: %w", err)
+	if err := r.db.Create(&bankAccount).Error; err != nil {
+		return domain.BankAccount{}, fmt.Errorf("create bank account: %w", err)
 	}
 	return bankAccount, nil
 }

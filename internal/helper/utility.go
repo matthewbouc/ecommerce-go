@@ -6,20 +6,22 @@ import (
 )
 
 func RandomNumbers(length int) (int, error) {
+	const digits = "0123456789"
+	const base = byte(len(digits))       // 10
+	const maxUnbiased = 256 - (256 % 10) // 250 — largest multiple of 10 that fits in a byte
 
-	const numbers = "0123456789"
-
-	buffer := make([]byte, length)
-	_, err := rand.Read(buffer)
-	if err != nil {
-		return 0, err
+	result := make([]byte, length)
+	i := 0
+	for i < length {
+		var b [1]byte
+		if _, err := rand.Read(b[:]); err != nil {
+			return 0, err
+		}
+		if b[0] < maxUnbiased {
+			result[i] = digits[b[0]%base]
+			i++
+		}
 	}
 
-	numLength := len(numbers)
-
-	for i := 0; i < length; i++ {
-		buffer[i] = numbers[int(buffer[i])%numLength]
-	}
-
-	return strconv.Atoi(string(buffer))
+	return strconv.Atoi(string(result))
 }

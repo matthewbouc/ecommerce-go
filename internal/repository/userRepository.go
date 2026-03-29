@@ -29,11 +29,8 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 }
 
 func (r *userRepository) CreateUser(user domain.User) (domain.User, error) {
-	// gorm handles created_at and updated_at
-	err := r.db.Create(&user).Error
-	if err != nil {
-		return domain.User{}, fmt.Errorf("create user error: %w", err)
-
+	if err := r.db.Create(&user).Error; err != nil {
+		return domain.User{}, fmt.Errorf("create user: %w", err)
 	}
 	return user, nil
 }
@@ -48,35 +45,33 @@ func (r *userRepository) GetUserById(id uint) (*domain.User, error) {
 
 func (r *userRepository) GetUserByUuid(userUuid uuid.UUID) (*domain.User, error) {
 	var user domain.User
-	if err := r.db.First(&user, "uuid = ?", userUuid).Error; err != nil {
-		return nil, fmt.Errorf("error during get user by uuid %s: %w", userUuid, err)
+	if err := r.db.Where("uuid = ?", userUuid).First(&user).Error; err != nil {
+		return nil, fmt.Errorf("get user by uuid %s: %w", userUuid, err)
 	}
 	return &user, nil
 }
 
 func (r *userRepository) GetUserByEmail(email string) (*domain.User, error) {
 	var user domain.User
-	err := r.db.Where("email = ?", email).First(&user).Error
-	if err != nil {
+	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, fmt.Errorf("get user by email %s: %w", email, err)
 	}
 	return &user, nil
 }
 
 func (r *userRepository) UpdateUser(user *domain.User) error {
-	// gorm will update_at
-	err := r.db.Model(&user).Clauses(clause.Returning{}).Where("uuid=?", user.Uuid).Updates(user).Error
+
+	err := r.db.Model(user).Clauses(clause.Returning{}).Where("uuid = ?", user.Uuid).Updates(user).Error
 	if err != nil {
-		return fmt.Errorf("error while updating user: %w", err)
+		return fmt.Errorf("update user %s: %w", user.Uuid, err)
 	}
 	return nil
 }
 
 func (r *userRepository) DeleteUser(user *domain.User) error {
-	// gorm will soft-delete
-	err := r.db.Delete(&user).Error
-	if err != nil {
-		return fmt.Errorf("error while deleting user: %w", err)
+	// GORM soft-deletes because User has gorm.DeletedAt.
+	if err := r.db.Delete(user).Error; err != nil {
+		return fmt.Errorf("delete user %s: %w", user.Uuid, err)
 	}
 	return nil
 }

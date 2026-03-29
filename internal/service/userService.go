@@ -15,24 +15,62 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserService struct {
-	UserRepository        repository.UserRepository
-	BankAccountRepository repository.BankAccountRepository
-	CartRepository        repository.CartRepository
-	OrderRepository       repository.OrderRepository
-	Auth                  helper.Auth
-	Config                config.AppConfig
-	SmsClient             sms.SmsClient
+type UserService interface {
+	Register(dto.RegisterRequest) (string, error)
+	Login(dto.LoginRequest) (string, error)
+	DeleteUser(uuid.UUID) error
+	IsActiveUser(uuid.UUID) bool
+	GetVerificationCode(domain.User) (int, error)
+	VerifyCode(uuid.UUID, int) error
+	GetProfile(uuid.UUID) (*dto.UserProfileResponse, error)
+	UpdateProfile(uuid.UUID, dto.UpdateProfileRequest) error
+	GetCart(uuid.UUID) ([]dto.CartItemResponse, error)
+	AddToCart(uuid.UUID, dto.AddToCartRequest) error
+	RemoveFromCart(uuid.UUID, uint) error
+	GetOrders(uuid.UUID) ([]dto.OrderResponse, error)
+	GetOrderById(uuid.UUID, uuid.UUID) (*dto.OrderResponse, error)
+	BecomeSeller(dto.BecomeSellerRequest) (string, error)
 }
 
-func (userService UserService) Register(userInfo dto.RegisterRequest) (string, error) {
+// userServiceImpl is the concrete implementation. Unexported intentionally —
+// external packages receive a UserService interface from NewUserService.
+type userServiceImpl struct {
+	userRepo  repository.UserRepository
+	bankRepo  repository.BankAccountRepository
+	cartRepo  repository.CartRepository
+	orderRepo repository.OrderRepository
+	auth      helper.Auth
+	config    config.AppConfig
+	smsClient sms.SmsClient
+}
 
-	hashPassword, err := userService.Auth.HashPassword(userInfo.Password)
+func NewUserService(
+	userRepo repository.UserRepository,
+	bankRepo repository.BankAccountRepository,
+	cartRepo repository.CartRepository,
+	orderRepo repository.OrderRepository,
+	auth helper.Auth,
+	cfg config.AppConfig,
+	smsClient sms.SmsClient,
+) UserService {
+	return &userServiceImpl{
+		userRepo:  userRepo,
+		bankRepo:  bankRepo,
+		cartRepo:  cartRepo,
+		orderRepo: orderRepo,
+		auth:      auth,
+		config:    cfg,
+		smsClient: smsClient,
+	}
+}
+
+func (s *userServiceImpl) Register(userInfo dto.RegisterRequest) (string, error) {
+	hashPassword, err := s.auth.HashPassword(userInfo.Password)
 	if err != nil {
 		return "", err
 	}
 
-	user, err := userService.UserRepository.CreateUser(domain.User{
+	user, err := s.userRepo.CreateUser(domain.User{
 		Email:     userInfo.Email,
 		Password:  hashPassword,
 		FirstName: userInfo.FirstName,
@@ -43,71 +81,62 @@ func (userService UserService) Register(userInfo dto.RegisterRequest) (string, e
 		return "", err
 	}
 
-	return userService.Auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
+	return s.auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
-func (userService UserService) Login(attempt dto.LoginRequest) (string, error) {
-	user, err := userService.findUserByEmail(attempt.Email)
+func (s *userServiceImpl) Login(attempt dto.LoginRequest) (string, error) {
+	user, err := s.findUserByEmail(attempt.Email)
 	if err != nil {
 		return "", errors.New("user not found: " + err.Error())
 	}
 
-	err = userService.Auth.VerifyPassword(attempt.Password, user.Password)
+	err = s.auth.VerifyPassword(attempt.Password, user.Password)
 	if err != nil {
 		return "", err
 	}
 
 	lastLogin := time.Now()
 	user.LastLogin = &lastLogin
-	err = userService.UserRepository.UpdateUser(user)
+	err = s.userRepo.UpdateUser(user)
+	if err != nil {
+		return "", err
+	}
 
-	return userService.Auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
+	return s.auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
-func (userService UserService) DeleteUser(uuid uuid.UUID) error {
-	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
+func (s *userServiceImpl) DeleteUser(id uuid.UUID) error {
+	foundUser, err := s.userRepo.GetUserByUuid(id)
 	if err != nil {
 		return err
 	}
-	err = userService.UserRepository.DeleteUser(foundUser)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.userRepo.DeleteUser(foundUser)
 }
 
-func (userService UserService) findUserByEmail(email string) (*domain.User, error) {
-	foundUser, err := userService.UserRepository.GetUserByEmail(email)
-	if err != nil {
-		return nil, err
-	}
-	return foundUser, nil
+func (s *userServiceImpl) findUserByEmail(email string) (*domain.User, error) {
+	return s.userRepo.GetUserByEmail(email)
 }
 
-func (userService UserService) findUserByUuid(uuid uuid.UUID) (*domain.User, error) {
-	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
-	if err != nil {
-		return nil, err
-	}
-	return foundUser, nil
+func (s *userServiceImpl) findUserByUuid(id uuid.UUID) (*domain.User, error) {
+	return s.userRepo.GetUserByUuid(id)
 }
 
-func (userService UserService) IsActiveUser(uuid uuid.UUID) bool {
-	foundUser, err := userService.UserRepository.GetUserByUuid(uuid)
+func (s *userServiceImpl) IsActiveUser(id uuid.UUID) bool {
+	foundUser, err := s.userRepo.GetUserByUuid(id)
 	return err == nil && !foundUser.DeletedAt.Valid
 }
 
-func (userService UserService) isVerifiedUser(id uuid.UUID) bool {
-	foundUser, err := userService.UserRepository.GetUserByUuid(id)
+func (s *userServiceImpl) isVerifiedUser(id uuid.UUID) bool {
+	foundUser, err := s.userRepo.GetUserByUuid(id)
 	return err == nil && foundUser.Verified
 }
 
-func (userService UserService) GetVerificationCode(attempt domain.User) (int, error) {
-	if userService.isVerifiedUser(attempt.Uuid) {
+func (s *userServiceImpl) GetVerificationCode(attempt domain.User) (int, error) {
+	if s.isVerifiedUser(attempt.Uuid) {
 		return 0, errors.New("user is already verified")
 	}
 
-	code, err := userService.Auth.GenerateCode()
+	code, err := s.auth.GenerateCode()
 	if err != nil {
 		return 0, err
 	}
@@ -119,17 +148,12 @@ func (userService UserService) GetVerificationCode(attempt domain.User) (int, er
 		VerificationCode: code,
 	}
 
-	err = userService.UserRepository.UpdateUser(&user)
-
-	if err != nil {
-		return 0, errors.New("unable to updated verification code")
+	if err = s.userRepo.UpdateUser(&user); err != nil {
+		return 0, errors.New("unable to update verification code")
 	}
 
-	// Send SMS Notification
 	msg := fmt.Sprintf("Your verification code is %v", code)
-
-	err = userService.SmsClient.SendSms(user.Phone, msg)
-	if err != nil {
+	if err = s.smsClient.SendSms(user.Phone, msg); err != nil {
 		return 0, errors.New("unable to send sms message")
 	}
 
@@ -137,13 +161,12 @@ func (userService UserService) GetVerificationCode(attempt domain.User) (int, er
 	return code, nil
 }
 
-func (userService UserService) VerifyCode(Uuid uuid.UUID, code int) error {
-
-	if userService.isVerifiedUser(Uuid) {
+func (s *userServiceImpl) VerifyCode(id uuid.UUID, code int) error {
+	if s.isVerifiedUser(id) {
 		return errors.New("user is already verified")
 	}
 
-	user, err := userService.findUserByUuid(Uuid)
+	user, err := s.findUserByUuid(id)
 	if err != nil {
 		return err
 	}
@@ -152,24 +175,19 @@ func (userService UserService) VerifyCode(Uuid uuid.UUID, code int) error {
 		return errors.New("invalid verification code")
 	}
 
-	if time.Now().After(*user.Expiry) {
+	// Expiry is nil if the user never requested a code — treat as expired.
+	if user.Expiry == nil || time.Now().After(*user.Expiry) {
 		return errors.New("verification code is expired")
 	}
 
 	user.Verified = true
-
-	err = userService.UserRepository.UpdateUser(user)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.userRepo.UpdateUser(user)
 }
 
 // Profile
 
-func (userService UserService) GetProfile(userUuid uuid.UUID) (*dto.UserProfileResponse, error) {
-	user, err := userService.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetProfile(userUuid uuid.UUID) (*dto.UserProfileResponse, error) {
+	user, err := s.findUserByUuid(userUuid)
 	if err != nil {
 		return nil, err
 	}
@@ -184,26 +202,26 @@ func (userService UserService) GetProfile(userUuid uuid.UUID) (*dto.UserProfileR
 	}, nil
 }
 
-func (userService UserService) UpdateProfile(userUuid uuid.UUID, input dto.UpdateProfileRequest) error {
-	user, err := userService.findUserByUuid(userUuid)
+func (s *userServiceImpl) UpdateProfile(userUuid uuid.UUID, input dto.UpdateProfileRequest) error {
+	user, err := s.findUserByUuid(userUuid)
 	if err != nil {
 		return err
 	}
 	user.FirstName = input.FirstName
 	user.LastName = input.LastName
 	user.Phone = input.Phone
-	return userService.UserRepository.UpdateUser(user)
+	return s.userRepo.UpdateUser(user)
 }
 
 // Cart
 
-func (userService UserService) GetCart(userUuid uuid.UUID) ([]dto.CartItemResponse, error) {
-	user, err := userService.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetCart(userUuid uuid.UUID) ([]dto.CartItemResponse, error) {
+	user, err := s.findUserByUuid(userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := userService.CartRepository.GetCartByUserId(user.Id)
+	items, err := s.cartRepo.GetCartByUserId(user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -225,23 +243,23 @@ func (userService UserService) GetCart(userUuid uuid.UUID) ([]dto.CartItemRespon
 	return response, nil
 }
 
-func (userService UserService) RemoveFromCart(userUuid uuid.UUID, cartItemId uint) error {
-	user, err := userService.findUserByUuid(userUuid)
+func (s *userServiceImpl) RemoveFromCart(userUuid uuid.UUID, cartItemId uint) error {
+	user, err := s.findUserByUuid(userUuid)
 	if err != nil {
 		return err
 	}
 	// Ownership is enforced inside the repository by scoping the delete to user.Id.
-	return userService.CartRepository.DeleteCartItemByIdAndUser(cartItemId, user.Id)
+	return s.cartRepo.DeleteCartItemByIdAndUser(cartItemId, user.Id)
 }
 
-func (userService UserService) AddToCart(userUuid uuid.UUID, input dto.AddToCartRequest) error {
-	user, err := userService.findUserByUuid(userUuid)
+func (s *userServiceImpl) AddToCart(userUuid uuid.UUID, input dto.AddToCartRequest) error {
+	user, err := s.findUserByUuid(userUuid)
 	if err != nil {
 		return err
 	}
 
-	// Upsert: if this product is already in the cart, increment quantity
-	existing, err := userService.CartRepository.GetCartItemByUserAndProduct(user.Id, input.ProductId)
+	// Upsert: if this product is already in the cart, increment quantity.
+	existing, err := s.cartRepo.GetCartItemByUserAndProduct(user.Id, input.ProductId)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -249,10 +267,10 @@ func (userService UserService) AddToCart(userUuid uuid.UUID, input dto.AddToCart
 	if existing != nil {
 		existing.Quantity += input.Quantity
 		existing.Price = input.Price // refresh snapshot price
-		return userService.CartRepository.UpdateCartItem(existing)
+		return s.cartRepo.UpdateCartItem(existing)
 	}
 
-	_, err = userService.CartRepository.CreateCartItem(domain.CartItem{
+	_, err = s.cartRepo.CreateCartItem(domain.CartItem{
 		UserId:    user.Id,
 		ProductId: input.ProductId,
 		SellerId:  input.SellerId,
@@ -266,13 +284,13 @@ func (userService UserService) AddToCart(userUuid uuid.UUID, input dto.AddToCart
 
 // Orders
 
-func (userService UserService) GetOrders(userUuid uuid.UUID) ([]dto.OrderResponse, error) {
-	user, err := userService.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetOrders(userUuid uuid.UUID) ([]dto.OrderResponse, error) {
+	user, err := s.findUserByUuid(userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	orders, err := userService.OrderRepository.GetOrdersByUserId(user.Id)
+	orders, err := s.orderRepo.GetOrdersByUserId(user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -284,13 +302,13 @@ func (userService UserService) GetOrders(userUuid uuid.UUID) ([]dto.OrderRespons
 	return response, nil
 }
 
-func (userService UserService) GetOrderById(userUuid uuid.UUID, orderUuid uuid.UUID) (*dto.OrderResponse, error) {
-	user, err := userService.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetOrderById(userUuid uuid.UUID, orderUuid uuid.UUID) (*dto.OrderResponse, error) {
+	user, err := s.findUserByUuid(userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	order, err := userService.OrderRepository.GetOrderByUuid(user.Id, orderUuid)
+	order, err := s.orderRepo.GetOrderByUuid(user.Id, orderUuid)
 	if err != nil {
 		return nil, err
 	}
@@ -299,9 +317,8 @@ func (userService UserService) GetOrderById(userUuid uuid.UUID, orderUuid uuid.U
 	return &res, nil
 }
 
-func (userService UserService) BecomeSeller(req dto.BecomeSellerRequest) (string, error) {
-
-	user, err := userService.findUserByUuid(req.Uuid)
+func (s *userServiceImpl) BecomeSeller(req dto.BecomeSellerRequest) (string, error) {
+	user, err := s.findUserByUuid(req.Uuid)
 	if err != nil {
 		return "", err
 	}
@@ -314,28 +331,21 @@ func (userService UserService) BecomeSeller(req dto.BecomeSellerRequest) (string
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
 	user.Phone = req.Phone
-	// update user, create seller
-	err = userService.UserRepository.UpdateUser(user)
-	if err != nil {
+
+	if err = s.userRepo.UpdateUser(user); err != nil {
 		return "", err
 	}
 
-	_, err = userService.BankAccountRepository.CreateBankAccount(domain.BankAccount{
+	_, err = s.bankRepo.CreateBankAccount(domain.BankAccount{
 		UserId:            user.Id,
 		BankAccountNumber: req.BankAccountNumber,
 		RoutingNumber:     req.RoutingNumber,
 	})
-
 	if err != nil {
 		return "", err
 	}
 
-	sellerToken, err := userService.Auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
-	if err != nil {
-		return "", err
-	}
-
-	return sellerToken, nil
+	return s.auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
 func toOrderResponse(order domain.Order) dto.OrderResponse {
