@@ -73,15 +73,13 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 func (h *UserHandler) Register(ctx fiber.Ctx) error {
 	user := dto.RegisterRequest{}
 
-	// TODO: add some validation here?
-	err := ctx.Bind().Body(&user)
-	if err != nil {
+	if err := ctx.Bind().Body(&user); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Please provide valid inputs",
 		})
 	}
 
-	token, err := h.svc.Register(user)
+	token, err := h.svc.Register(ctx, user)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "error on sign up",
@@ -98,14 +96,13 @@ func (h *UserHandler) Register(ctx fiber.Ctx) error {
 func (h *UserHandler) Login(ctx fiber.Ctx) error {
 	loginAttempt := dto.LoginRequest{}
 
-	err := ctx.Bind().Body(&loginAttempt)
-	if err != nil {
+	if err := ctx.Bind().Body(&loginAttempt); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Please provide valid login inputs",
 		})
 	}
 
-	token, err := h.svc.Login(loginAttempt)
+	token, err := h.svc.Login(ctx, loginAttempt)
 	if err != nil {
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": err.Error(),
@@ -120,8 +117,7 @@ func (h *UserHandler) Login(ctx fiber.Ctx) error {
 
 func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
-	err := h.svc.DeleteUser(user.Uuid)
-	if err != nil {
+	if err := h.svc.DeleteUser(ctx, user.Uuid); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -134,7 +130,7 @@ func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
 func (h *UserHandler) GetVerificationCode(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 
-	code, err := h.svc.GetVerificationCode(user)
+	code, err := h.svc.GetVerificationCode(ctx, user)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
@@ -157,7 +153,7 @@ func (h *UserHandler) Verify(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := h.svc.VerifyCode(user.Uuid, req.Code); err != nil {
+	if err := h.svc.VerifyCode(ctx, user.Uuid, req.Code); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -170,7 +166,7 @@ func (h *UserHandler) Verify(ctx fiber.Ctx) error {
 
 func (h *UserHandler) GetProfile(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
-	profile, err := h.svc.GetProfile(user.Uuid)
+	profile, err := h.svc.GetProfile(ctx, user.Uuid)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
@@ -192,7 +188,7 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := h.svc.UpdateProfile(user.Uuid, req); err != nil {
+	if err := h.svc.UpdateProfile(ctx, user.Uuid, req); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -204,7 +200,7 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 
 func (h *UserHandler) GetCart(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
-	items, err := h.svc.GetCart(user.Uuid)
+	items, err := h.svc.GetCart(ctx, user.Uuid)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
@@ -226,7 +222,7 @@ func (h *UserHandler) AddToCart(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := h.svc.AddToCart(user.Uuid, req); err != nil {
+	if err := h.svc.AddToCart(ctx, user.Uuid, req); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -238,7 +234,7 @@ func (h *UserHandler) AddToCart(ctx fiber.Ctx) error {
 
 func (h *UserHandler) GetOrders(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
-	orders, err := h.svc.GetOrders(user.Uuid)
+	orders, err := h.svc.GetOrders(ctx, user.Uuid)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
@@ -260,7 +256,7 @@ func (h *UserHandler) GetOrder(ctx fiber.Ctx) error {
 		})
 	}
 
-	order, err := h.svc.GetOrderById(user.Uuid, orderUuid)
+	order, err := h.svc.GetOrderById(ctx, user.Uuid, orderUuid)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
@@ -275,7 +271,7 @@ func (h *UserHandler) GetOrder(ctx fiber.Ctx) error {
 func (h *UserHandler) Checkout(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 
-	order, err := h.svc.Checkout(user.Uuid)
+	order, err := h.svc.Checkout(ctx, user.Uuid)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
@@ -305,7 +301,7 @@ func (h *UserHandler) UpdateOrderStatus(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := h.svc.UpdateOrderStatus(user.Uuid, orderUuid, req.Status); err != nil {
+	if err := h.svc.UpdateOrderStatus(ctx, user.Uuid, orderUuid, req.Status); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -320,7 +316,7 @@ func (h *UserHandler) UpdateOrderStatus(ctx fiber.Ctx) error {
 // It runs after Authorize so ctx.Locals("user") is already populated.
 func (h *UserHandler) requireActiveUser(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
-	if !h.svc.IsActiveUser(user.Uuid) {
+	if !h.svc.IsActiveUser(ctx, user.Uuid) {
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "account not found or has been deleted",
 		})
@@ -338,7 +334,7 @@ func (h *UserHandler) RemoveFromCart(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := h.svc.RemoveFromCart(user.Uuid, uint(itemId)); err != nil {
+	if err := h.svc.RemoveFromCart(ctx, user.Uuid, uint(itemId)); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -359,7 +355,7 @@ func (h *UserHandler) BecomeSeller(ctx fiber.Ctx) error {
 	}
 
 	req.Uuid = user.Uuid
-	token, err := h.svc.BecomeSeller(req)
+	token, err := h.svc.BecomeSeller(ctx, req)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "failed to register as a seller",

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"ecommerce/internal/domain"
 	"fmt"
 
@@ -21,16 +22,16 @@ type ProductFilter struct {
 
 type CatalogRepository interface {
 	// Product operations
-	CreateProduct(product domain.Product) (domain.Product, error)
-	GetProductByUuid(productUuid uuid.UUID) (*domain.Product, error)
-	GetProducts(filter ProductFilter) ([]domain.Product, int64, error)
-	UpdateProduct(product *domain.Product) error
-	DeleteProduct(product *domain.Product) error
+	CreateProduct(ctx context.Context, product domain.Product) (domain.Product, error)
+	GetProductByUuid(ctx context.Context, productUuid uuid.UUID) (*domain.Product, error)
+	GetProducts(ctx context.Context, filter ProductFilter) ([]domain.Product, int64, error)
+	UpdateProduct(ctx context.Context, product *domain.Product) error
+	DeleteProduct(ctx context.Context, product *domain.Product) error
 
 	// Category operations
-	CreateCategory(category domain.Category) (domain.Category, error)
-	GetCategoryByUuid(categoryUuid uuid.UUID) (*domain.Category, error)
-	GetCategories() ([]domain.Category, error)
+	CreateCategory(ctx context.Context, category domain.Category) (domain.Category, error)
+	GetCategoryByUuid(ctx context.Context, categoryUuid uuid.UUID) (*domain.Category, error)
+	GetCategories(ctx context.Context) ([]domain.Category, error)
 }
 
 type catalogRepository struct {
@@ -45,17 +46,17 @@ func NewCatalogRepository(db *gorm.DB) CatalogRepository {
 // Product
 // ─────────────────────────────────────────────
 
-func (r *catalogRepository) CreateProduct(product domain.Product) (domain.Product, error) {
-	if err := r.db.Create(&product).Error; err != nil {
+func (r *catalogRepository) CreateProduct(ctx context.Context, product domain.Product) (domain.Product, error) {
+	if err := r.db.WithContext(ctx).Create(&product).Error; err != nil {
 		return domain.Product{}, fmt.Errorf("create product: %w", err)
 	}
 	return product, nil
 }
 
-func (r *catalogRepository) GetProductByUuid(productUuid uuid.UUID) (*domain.Product, error) {
+func (r *catalogRepository) GetProductByUuid(ctx context.Context, productUuid uuid.UUID) (*domain.Product, error) {
 	var product domain.Product
 	// Preload("Category") fetches the related Category row in a single extra query, so it's not empty struct
-	err := r.db.Preload("Category").
+	err := r.db.WithContext(ctx).Preload("Category").
 		Where("uuid = ?", productUuid).
 		First(&product).Error
 	if err != nil {
@@ -64,11 +65,11 @@ func (r *catalogRepository) GetProductByUuid(productUuid uuid.UUID) (*domain.Pro
 	return &product, nil
 }
 
-func (r *catalogRepository) GetProducts(filter ProductFilter) ([]domain.Product, int64, error) {
+func (r *catalogRepository) GetProducts(ctx context.Context, filter ProductFilter) ([]domain.Product, int64, error) {
 	var products []domain.Product
 	var total int64
 
-	query := r.db.Model(&domain.Product{})
+	query := r.db.WithContext(ctx).Model(&domain.Product{})
 
 	if filter.SellerID != nil {
 		query = query.Where("seller_id = ?", *filter.SellerID)
@@ -104,10 +105,10 @@ func (r *catalogRepository) GetProducts(filter ProductFilter) ([]domain.Product,
 	return products, total, nil
 }
 
-func (r *catalogRepository) UpdateProduct(product *domain.Product) error {
+func (r *catalogRepository) UpdateProduct(ctx context.Context, product *domain.Product) error {
 	// clause.Returning{} updates the pointer in-place with the DB's version of
 	// the record after the update — avoids a separate SELECT to confirm changes.
-	err := r.db.Model(product).
+	err := r.db.WithContext(ctx).Model(product).
 		Clauses(clause.Returning{}).
 		Where("uuid = ?", product.Uuid).
 		Updates(product).Error
@@ -117,8 +118,8 @@ func (r *catalogRepository) UpdateProduct(product *domain.Product) error {
 	return nil
 }
 
-func (r *catalogRepository) DeleteProduct(product *domain.Product) error {
-	if err := r.db.Delete(product).Error; err != nil {
+func (r *catalogRepository) DeleteProduct(ctx context.Context, product *domain.Product) error {
+	if err := r.db.WithContext(ctx).Delete(product).Error; err != nil {
 		return fmt.Errorf("delete product %s: %w", product.Uuid, err)
 	}
 	return nil
@@ -128,24 +129,24 @@ func (r *catalogRepository) DeleteProduct(product *domain.Product) error {
 // Category
 // ─────────────────────────────────────────────
 
-func (r *catalogRepository) CreateCategory(category domain.Category) (domain.Category, error) {
-	if err := r.db.Create(&category).Error; err != nil {
+func (r *catalogRepository) CreateCategory(ctx context.Context, category domain.Category) (domain.Category, error) {
+	if err := r.db.WithContext(ctx).Create(&category).Error; err != nil {
 		return domain.Category{}, fmt.Errorf("create category: %w", err)
 	}
 	return category, nil
 }
 
-func (r *catalogRepository) GetCategoryByUuid(categoryUuid uuid.UUID) (*domain.Category, error) {
+func (r *catalogRepository) GetCategoryByUuid(ctx context.Context, categoryUuid uuid.UUID) (*domain.Category, error) {
 	var category domain.Category
-	if err := r.db.Where("uuid = ?", categoryUuid).First(&category).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("uuid = ?", categoryUuid).First(&category).Error; err != nil {
 		return nil, fmt.Errorf("get category by uuid %s: %w", categoryUuid, err)
 	}
 	return &category, nil
 }
 
-func (r *catalogRepository) GetCategories() ([]domain.Category, error) {
+func (r *catalogRepository) GetCategories(ctx context.Context) ([]domain.Category, error) {
 	var categories []domain.Category
-	if err := r.db.Find(&categories).Error; err != nil {
+	if err := r.db.WithContext(ctx).Find(&categories).Error; err != nil {
 		return nil, fmt.Errorf("get categories: %w", err)
 	}
 	return categories, nil

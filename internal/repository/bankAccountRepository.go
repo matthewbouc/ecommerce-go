@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"ecommerce/internal/domain"
 	"fmt"
 
@@ -8,7 +9,7 @@ import (
 )
 
 type BankAccountRepository interface {
-	CreateBankAccount(bankAccount domain.BankAccount) (domain.BankAccount, error)
+	CreateBankAccount(ctx context.Context, bankAccount domain.BankAccount) (domain.BankAccount, error)
 }
 
 type bankAccountRepository struct {
@@ -16,13 +17,11 @@ type bankAccountRepository struct {
 }
 
 func NewBankAccountRepository(db *gorm.DB) BankAccountRepository {
-	return &bankAccountRepository{
-		db: db,
-	}
+	return &bankAccountRepository{db: db}
 }
 
-func (r *bankAccountRepository) CreateBankAccount(bankAccount domain.BankAccount) (domain.BankAccount, error) {
-	if err := r.db.Create(&bankAccount).Error; err != nil {
+func (r *bankAccountRepository) CreateBankAccount(ctx context.Context, bankAccount domain.BankAccount) (domain.BankAccount, error) {
+	if err := r.db.WithContext(ctx).Create(&bankAccount).Error; err != nil {
 		return domain.BankAccount{}, fmt.Errorf("create bank account: %w", err)
 	}
 	return bankAccount, nil

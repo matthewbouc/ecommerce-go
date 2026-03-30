@@ -18,22 +18,22 @@ import (
 )
 
 type UserService interface {
-	Register(dto.RegisterRequest) (string, error)
-	Login(dto.LoginRequest) (string, error)
-	DeleteUser(uuid.UUID) error
-	IsActiveUser(uuid.UUID) bool
-	GetVerificationCode(domain.User) (int, error)
-	VerifyCode(uuid.UUID, int) error
-	GetProfile(uuid.UUID) (*dto.UserProfileResponse, error)
-	UpdateProfile(uuid.UUID, dto.UpdateProfileRequest) error
-	GetCart(uuid.UUID) ([]dto.CartItemResponse, error)
-	AddToCart(uuid.UUID, dto.AddToCartRequest) error
-	RemoveFromCart(uuid.UUID, uint) error
-	GetOrders(uuid.UUID) ([]dto.OrderResponse, error)
-	GetOrderById(uuid.UUID, uuid.UUID) (*dto.OrderResponse, error)
-	Checkout(uuid.UUID) (*dto.OrderResponse, error)
-	UpdateOrderStatus(userUuid uuid.UUID, orderUuid uuid.UUID, status string) error
-	BecomeSeller(dto.BecomeSellerRequest) (string, error)
+	Register(ctx context.Context, req dto.RegisterRequest) (string, error)
+	Login(ctx context.Context, req dto.LoginRequest) (string, error)
+	DeleteUser(ctx context.Context, userUuid uuid.UUID) error
+	IsActiveUser(ctx context.Context, userUuid uuid.UUID) bool
+	GetVerificationCode(ctx context.Context, user domain.User) (int, error)
+	VerifyCode(ctx context.Context, userUuid uuid.UUID, code int) error
+	GetProfile(ctx context.Context, userUuid uuid.UUID) (*dto.UserProfileResponse, error)
+	UpdateProfile(ctx context.Context, userUuid uuid.UUID, input dto.UpdateProfileRequest) error
+	GetCart(ctx context.Context, userUuid uuid.UUID) ([]dto.CartItemResponse, error)
+	AddToCart(ctx context.Context, userUuid uuid.UUID, input dto.AddToCartRequest) error
+	RemoveFromCart(ctx context.Context, userUuid uuid.UUID, cartItemId uint) error
+	GetOrders(ctx context.Context, userUuid uuid.UUID) ([]dto.OrderResponse, error)
+	GetOrderById(ctx context.Context, userUuid uuid.UUID, orderUuid uuid.UUID) (*dto.OrderResponse, error)
+	Checkout(ctx context.Context, userUuid uuid.UUID) (*dto.OrderResponse, error)
+	UpdateOrderStatus(ctx context.Context, userUuid uuid.UUID, orderUuid uuid.UUID, status string) error
+	BecomeSeller(ctx context.Context, req dto.BecomeSellerRequest) (string, error)
 }
 
 // userServiceImpl is the concrete implementation. Unexported intentionally —
@@ -71,13 +71,13 @@ func NewUserService(
 	}
 }
 
-func (s *userServiceImpl) Register(userInfo dto.RegisterRequest) (string, error) {
+func (s *userServiceImpl) Register(ctx context.Context, userInfo dto.RegisterRequest) (string, error) {
 	hashPassword, err := s.auth.HashPassword(userInfo.Password)
 	if err != nil {
 		return "", err
 	}
 
-	user, err := s.userRepo.CreateUser(domain.User{
+	user, err := s.userRepo.CreateUser(ctx, domain.User{
 		Email:     userInfo.Email,
 		Password:  hashPassword,
 		FirstName: userInfo.FirstName,
@@ -91,55 +91,53 @@ func (s *userServiceImpl) Register(userInfo dto.RegisterRequest) (string, error)
 	return s.auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
-func (s *userServiceImpl) Login(attempt dto.LoginRequest) (string, error) {
-	user, err := s.findUserByEmail(attempt.Email)
+func (s *userServiceImpl) Login(ctx context.Context, attempt dto.LoginRequest) (string, error) {
+	user, err := s.findUserByEmail(ctx, attempt.Email)
 	if err != nil {
 		return "", errors.New("user not found: " + err.Error())
 	}
 
-	err = s.auth.VerifyPassword(attempt.Password, user.Password)
-	if err != nil {
+	if err = s.auth.VerifyPassword(attempt.Password, user.Password); err != nil {
 		return "", err
 	}
 
 	lastLogin := time.Now()
 	user.LastLogin = &lastLogin
-	err = s.userRepo.UpdateUser(user)
-	if err != nil {
+	if err = s.userRepo.UpdateUser(ctx, user); err != nil {
 		return "", err
 	}
 
 	return s.auth.GenerateJwt(user.Uuid, user.Email, user.UserType)
 }
 
-func (s *userServiceImpl) DeleteUser(id uuid.UUID) error {
-	foundUser, err := s.userRepo.GetUserByUuid(id)
+func (s *userServiceImpl) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	foundUser, err := s.userRepo.GetUserByUuid(ctx, id)
 	if err != nil {
 		return err
 	}
-	return s.userRepo.DeleteUser(foundUser)
+	return s.userRepo.DeleteUser(ctx, foundUser)
 }
 
-func (s *userServiceImpl) findUserByEmail(email string) (*domain.User, error) {
-	return s.userRepo.GetUserByEmail(email)
+func (s *userServiceImpl) findUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return s.userRepo.GetUserByEmail(ctx, email)
 }
 
-func (s *userServiceImpl) findUserByUuid(id uuid.UUID) (*domain.User, error) {
-	return s.userRepo.GetUserByUuid(id)
+func (s *userServiceImpl) findUserByUuid(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	return s.userRepo.GetUserByUuid(ctx, id)
 }
 
-func (s *userServiceImpl) IsActiveUser(id uuid.UUID) bool {
-	foundUser, err := s.userRepo.GetUserByUuid(id)
+func (s *userServiceImpl) IsActiveUser(ctx context.Context, id uuid.UUID) bool {
+	foundUser, err := s.userRepo.GetUserByUuid(ctx, id)
 	return err == nil && !foundUser.DeletedAt.Valid
 }
 
-func (s *userServiceImpl) isVerifiedUser(id uuid.UUID) bool {
-	foundUser, err := s.userRepo.GetUserByUuid(id)
+func (s *userServiceImpl) isVerifiedUser(ctx context.Context, id uuid.UUID) bool {
+	foundUser, err := s.userRepo.GetUserByUuid(ctx, id)
 	return err == nil && foundUser.Verified
 }
 
-func (s *userServiceImpl) GetVerificationCode(attempt domain.User) (int, error) {
-	if s.isVerifiedUser(attempt.Uuid) {
+func (s *userServiceImpl) GetVerificationCode(ctx context.Context, attempt domain.User) (int, error) {
+	if s.isVerifiedUser(ctx, attempt.Uuid) {
 		return 0, errors.New("user is already verified")
 	}
 
@@ -155,7 +153,7 @@ func (s *userServiceImpl) GetVerificationCode(attempt domain.User) (int, error) 
 		VerificationCode: code,
 	}
 
-	if err = s.userRepo.UpdateUser(&user); err != nil {
+	if err = s.userRepo.UpdateUser(ctx, &user); err != nil {
 		return 0, errors.New("unable to update verification code")
 	}
 
@@ -168,12 +166,12 @@ func (s *userServiceImpl) GetVerificationCode(attempt domain.User) (int, error) 
 	return code, nil
 }
 
-func (s *userServiceImpl) VerifyCode(id uuid.UUID, code int) error {
-	if s.isVerifiedUser(id) {
+func (s *userServiceImpl) VerifyCode(ctx context.Context, id uuid.UUID, code int) error {
+	if s.isVerifiedUser(ctx, id) {
 		return errors.New("user is already verified")
 	}
 
-	user, err := s.findUserByUuid(id)
+	user, err := s.findUserByUuid(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -188,13 +186,13 @@ func (s *userServiceImpl) VerifyCode(id uuid.UUID, code int) error {
 	}
 
 	user.Verified = true
-	return s.userRepo.UpdateUser(user)
+	return s.userRepo.UpdateUser(ctx, user)
 }
 
 // Profile
 
-func (s *userServiceImpl) GetProfile(userUuid uuid.UUID) (*dto.UserProfileResponse, error) {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetProfile(ctx context.Context, userUuid uuid.UUID) (*dto.UserProfileResponse, error) {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return nil, err
 	}
@@ -209,26 +207,26 @@ func (s *userServiceImpl) GetProfile(userUuid uuid.UUID) (*dto.UserProfileRespon
 	}, nil
 }
 
-func (s *userServiceImpl) UpdateProfile(userUuid uuid.UUID, input dto.UpdateProfileRequest) error {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) UpdateProfile(ctx context.Context, userUuid uuid.UUID, input dto.UpdateProfileRequest) error {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return err
 	}
 	user.FirstName = input.FirstName
 	user.LastName = input.LastName
 	user.Phone = input.Phone
-	return s.userRepo.UpdateUser(user)
+	return s.userRepo.UpdateUser(ctx, user)
 }
 
 // Cart
 
-func (s *userServiceImpl) GetCart(userUuid uuid.UUID) ([]dto.CartItemResponse, error) {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetCart(ctx context.Context, userUuid uuid.UUID) ([]dto.CartItemResponse, error) {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := s.cartRepo.GetCartByUserId(user.Id)
+	items, err := s.cartRepo.GetCartByUserId(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -250,23 +248,23 @@ func (s *userServiceImpl) GetCart(userUuid uuid.UUID) ([]dto.CartItemResponse, e
 	return response, nil
 }
 
-func (s *userServiceImpl) RemoveFromCart(userUuid uuid.UUID, cartItemId uint) error {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) RemoveFromCart(ctx context.Context, userUuid uuid.UUID, cartItemId uint) error {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return err
 	}
 	// Ownership is enforced inside the repository by scoping the delete to user.Id.
-	return s.cartRepo.DeleteCartItemByIdAndUser(cartItemId, user.Id)
+	return s.cartRepo.DeleteCartItemByIdAndUser(ctx, cartItemId, user.Id)
 }
 
-func (s *userServiceImpl) AddToCart(userUuid uuid.UUID, input dto.AddToCartRequest) error {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) AddToCart(ctx context.Context, userUuid uuid.UUID, input dto.AddToCartRequest) error {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return err
 	}
 
 	// Upsert: if this product is already in the cart, increment quantity.
-	existing, err := s.cartRepo.GetCartItemByUserAndProduct(user.Id, input.ProductId)
+	existing, err := s.cartRepo.GetCartItemByUserAndProduct(ctx, user.Id, input.ProductId)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -274,10 +272,10 @@ func (s *userServiceImpl) AddToCart(userUuid uuid.UUID, input dto.AddToCartReque
 	if existing != nil {
 		existing.Quantity += input.Quantity
 		existing.Price = input.Price // refresh snapshot price
-		return s.cartRepo.UpdateCartItem(existing)
+		return s.cartRepo.UpdateCartItem(ctx, existing)
 	}
 
-	_, err = s.cartRepo.CreateCartItem(domain.CartItem{
+	_, err = s.cartRepo.CreateCartItem(ctx, domain.CartItem{
 		UserId:    user.Id,
 		ProductId: input.ProductId,
 		SellerId:  input.SellerId,
@@ -291,13 +289,13 @@ func (s *userServiceImpl) AddToCart(userUuid uuid.UUID, input dto.AddToCartReque
 
 // Orders
 
-func (s *userServiceImpl) GetOrders(userUuid uuid.UUID) ([]dto.OrderResponse, error) {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetOrders(ctx context.Context, userUuid uuid.UUID) ([]dto.OrderResponse, error) {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	orders, err := s.orderRepo.GetOrdersByUserId(user.Id)
+	orders, err := s.orderRepo.GetOrdersByUserId(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -309,13 +307,13 @@ func (s *userServiceImpl) GetOrders(userUuid uuid.UUID) ([]dto.OrderResponse, er
 	return response, nil
 }
 
-func (s *userServiceImpl) GetOrderById(userUuid uuid.UUID, orderUuid uuid.UUID) (*dto.OrderResponse, error) {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) GetOrderById(ctx context.Context, userUuid uuid.UUID, orderUuid uuid.UUID) (*dto.OrderResponse, error) {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	order, err := s.orderRepo.GetOrderByUuid(user.Id, orderUuid)
+	order, err := s.orderRepo.GetOrderByUuid(ctx, user.Id, orderUuid)
 	if err != nil {
 		return nil, err
 	}
@@ -324,13 +322,13 @@ func (s *userServiceImpl) GetOrderById(userUuid uuid.UUID, orderUuid uuid.UUID) 
 	return &res, nil
 }
 
-func (s *userServiceImpl) Checkout(userUuid uuid.UUID) (*dto.OrderResponse, error) {
-	user, err := s.findUserByUuid(userUuid)
+func (s *userServiceImpl) Checkout(ctx context.Context, userUuid uuid.UUID) (*dto.OrderResponse, error) {
+	user, err := s.findUserByUuid(ctx, userUuid)
 	if err != nil {
 		return nil, err
 	}
 
-	cartItems, err := s.cartRepo.GetCartByUserId(user.Id)
+	cartItems, err := s.cartRepo.GetCartByUserId(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -338,18 +336,13 @@ func (s *userServiceImpl) Checkout(userUuid uuid.UUID) (*dto.OrderResponse, erro
 		return nil, errors.New("cart is empty")
 	}
 
-	// Give the gRPC calls a 10s budget collectively.
-	// TODO: propagate the HTTP request context through service methods instead of creating a fresh background context here.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	var orderItems []domain.OrderItem
 	var totalPrice float64
 
 	for _, cartItem := range cartItems {
 		// Call the Catalog gRPC server — even though it runs in the same process,
 		// this goes through the full gRPC stack (serialize → TCP loopback → deserialize).
-		// When Order Service splits into its own binary, only the address will need to change.
+		// When Order Service splits into its own binary, only the address changes.
 		resp, err := s.catalogClient.GetProduct(ctx, &catalogpb.GetProductRequest{
 			Uuid: cartItem.ProductId.String(),
 		})
@@ -377,7 +370,7 @@ func (s *userServiceImpl) Checkout(userUuid uuid.UUID) (*dto.OrderResponse, erro
 		})
 	}
 
-	order, err := s.orderRepo.CreateOrder(domain.Order{
+	order, err := s.orderRepo.CreateOrder(ctx, domain.Order{
 		UserId:     user.Id,
 		Status:     domain.OrderPending,
 		TotalPrice: totalPrice,
@@ -389,7 +382,7 @@ func (s *userServiceImpl) Checkout(userUuid uuid.UUID) (*dto.OrderResponse, erro
 
 	// TODO: wrap CreateOrder + ClearCartByUserId in a single DB transaction
 	// so a cart-clear failure doesn't leave the user with a stale cart.
-	if err := s.cartRepo.ClearCartByUserId(user.Id); err != nil {
+	if err := s.cartRepo.ClearCartByUserId(ctx, user.Id); err != nil {
 		fmt.Printf("[checkout] warning: order %s created but cart not cleared: %v\n", order.Uuid, err)
 	}
 
@@ -397,18 +390,18 @@ func (s *userServiceImpl) Checkout(userUuid uuid.UUID) (*dto.OrderResponse, erro
 	return &res, nil
 }
 
-func (s *userServiceImpl) UpdateOrderStatus(userUuid uuid.UUID, orderUuid uuid.UUID, status string) error {
+func (s *userServiceImpl) UpdateOrderStatus(ctx context.Context, userUuid uuid.UUID, orderUuid uuid.UUID, status string) error {
 	orderStatus := domain.OrderStatus(status)
 	if !orderStatus.IsValidStatus() {
 		return fmt.Errorf("invalid status '%s'", status)
 	}
 	// TODO: verify userUuid has permission to update this order
 	// (buyer can cancel pending orders; seller can advance to shipped/delivered)
-	return s.orderRepo.UpdateOrderStatus(orderUuid, orderStatus)
+	return s.orderRepo.UpdateOrderStatus(ctx, orderUuid, orderStatus)
 }
 
-func (s *userServiceImpl) BecomeSeller(req dto.BecomeSellerRequest) (string, error) {
-	user, err := s.findUserByUuid(req.Uuid)
+func (s *userServiceImpl) BecomeSeller(ctx context.Context, req dto.BecomeSellerRequest) (string, error) {
+	user, err := s.findUserByUuid(ctx, req.Uuid)
 	if err != nil {
 		return "", err
 	}
@@ -422,11 +415,11 @@ func (s *userServiceImpl) BecomeSeller(req dto.BecomeSellerRequest) (string, err
 	user.LastName = req.LastName
 	user.Phone = req.Phone
 
-	if err = s.userRepo.UpdateUser(user); err != nil {
+	if err = s.userRepo.UpdateUser(ctx, user); err != nil {
 		return "", err
 	}
 
-	_, err = s.bankRepo.CreateBankAccount(domain.BankAccount{
+	_, err = s.bankRepo.CreateBankAccount(ctx, domain.BankAccount{
 		UserId:            user.Id,
 		BankAccountNumber: req.BankAccountNumber,
 		RoutingNumber:     req.RoutingNumber,

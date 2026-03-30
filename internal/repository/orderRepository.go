@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"ecommerce/internal/domain"
 	"fmt"
 
@@ -9,10 +10,10 @@ import (
 )
 
 type OrderRepository interface {
-	GetOrdersByUserId(userId uint) ([]domain.Order, error)
-	GetOrderByUuid(userId uint, orderUuid uuid.UUID) (*domain.Order, error)
-	CreateOrder(order domain.Order) (domain.Order, error)
-	UpdateOrderStatus(orderUuid uuid.UUID, status domain.OrderStatus) error
+	GetOrdersByUserId(ctx context.Context, userId uint) ([]domain.Order, error)
+	GetOrderByUuid(ctx context.Context, userId uint, orderUuid uuid.UUID) (*domain.Order, error)
+	CreateOrder(ctx context.Context, order domain.Order) (domain.Order, error)
+	UpdateOrderStatus(ctx context.Context, orderUuid uuid.UUID, status domain.OrderStatus) error
 }
 
 type orderRepository struct {
@@ -23,15 +24,17 @@ func NewOrderRepository(db *gorm.DB) OrderRepository {
 	return &orderRepository{db: db}
 }
 
-func (r *orderRepository) CreateOrder(order domain.Order) (domain.Order, error) {
-	if err := r.db.Create(&order).Error; err != nil {
+func (r *orderRepository) CreateOrder(ctx context.Context, order domain.Order) (domain.Order, error) {
+	// GORM cascades to Items automatically via the Items association.
+	// The returned order will have Items populated with their generated IDs.
+	if err := r.db.WithContext(ctx).Create(&order).Error; err != nil {
 		return domain.Order{}, fmt.Errorf("create order: %w", err)
 	}
 	return order, nil
 }
 
-func (r *orderRepository) UpdateOrderStatus(orderUuid uuid.UUID, status domain.OrderStatus) error {
-	result := r.db.Model(&domain.Order{}).
+func (r *orderRepository) UpdateOrderStatus(ctx context.Context, orderUuid uuid.UUID, status domain.OrderStatus) error {
+	result := r.db.WithContext(ctx).Model(&domain.Order{}).
 		Where("uuid = ?", orderUuid).
 		Update("status", status)
 	if result.Error != nil {
@@ -43,18 +46,18 @@ func (r *orderRepository) UpdateOrderStatus(orderUuid uuid.UUID, status domain.O
 	return nil
 }
 
-func (r *orderRepository) GetOrdersByUserId(userId uint) ([]domain.Order, error) {
+func (r *orderRepository) GetOrdersByUserId(ctx context.Context, userId uint) ([]domain.Order, error) {
 	var orders []domain.Order
-	err := r.db.Preload("Items").Where("user_id = ?", userId).Find(&orders).Error
+	err := r.db.WithContext(ctx).Preload("Items").Where("user_id = ?", userId).Find(&orders).Error
 	if err != nil {
 		return nil, fmt.Errorf("get orders for user %d: %w", userId, err)
 	}
 	return orders, nil
 }
 
-func (r *orderRepository) GetOrderByUuid(userId uint, orderUuid uuid.UUID) (*domain.Order, error) {
+func (r *orderRepository) GetOrderByUuid(ctx context.Context, userId uint, orderUuid uuid.UUID) (*domain.Order, error) {
 	var order domain.Order
-	err := r.db.Preload("Items").Where("user_id = ? AND uuid = ?", userId, orderUuid).First(&order).Error
+	err := r.db.WithContext(ctx).Preload("Items").Where("user_id = ? AND uuid = ?", userId, orderUuid).First(&order).Error
 	if err != nil {
 		return nil, fmt.Errorf("get order %s: %w", orderUuid, err)
 	}

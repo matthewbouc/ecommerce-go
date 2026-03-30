@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"ecommerce/internal/domain"
 	"ecommerce/internal/dto"
 	"ecommerce/internal/repository"
@@ -12,13 +13,13 @@ import (
 // CatalogService is the public interface consumed by the REST handler and
 // the gRPC server. Both call the same business logic through this contract.
 type CatalogService interface {
-	CreateProduct(sellerUuid uuid.UUID, input dto.CreateProductRequest) (dto.ProductResponse, error)
-	GetProduct(productUuid uuid.UUID) (dto.ProductResponse, error)
-	GetProducts(req dto.GetProductsRequest) (dto.GetProductsResponse, error)
-	UpdateProduct(sellerUuid uuid.UUID, productUuid uuid.UUID, input dto.UpdateProductRequest) (dto.ProductResponse, error)
-	DeleteProduct(sellerUuid uuid.UUID, productUuid uuid.UUID) error
-	CreateCategory(input dto.CreateCategoryRequest) (dto.CategoryResponse, error)
-	GetCategories() ([]dto.CategoryResponse, error)
+	CreateProduct(ctx context.Context, sellerUuid uuid.UUID, input dto.CreateProductRequest) (dto.ProductResponse, error)
+	GetProduct(ctx context.Context, productUuid uuid.UUID) (dto.ProductResponse, error)
+	GetProducts(ctx context.Context, req dto.GetProductsRequest) (dto.GetProductsResponse, error)
+	UpdateProduct(ctx context.Context, sellerUuid uuid.UUID, productUuid uuid.UUID, input dto.UpdateProductRequest) (dto.ProductResponse, error)
+	DeleteProduct(ctx context.Context, sellerUuid uuid.UUID, productUuid uuid.UUID) error
+	CreateCategory(ctx context.Context, input dto.CreateCategoryRequest) (dto.CategoryResponse, error)
+	GetCategories(ctx context.Context) ([]dto.CategoryResponse, error)
 }
 
 // catalogServiceImpl is the concrete implementation. Unexported — callers
@@ -35,7 +36,7 @@ func NewCatalogService(repo repository.CatalogRepository) CatalogService {
 // Products
 // ─────────────────────────────────────────────
 
-func (s *catalogServiceImpl) CreateProduct(sellerUuid uuid.UUID, input dto.CreateProductRequest) (dto.ProductResponse, error) {
+func (s *catalogServiceImpl) CreateProduct(ctx context.Context, sellerUuid uuid.UUID, input dto.CreateProductRequest) (dto.ProductResponse, error) {
 	product := domain.Product{
 		SellerID:    sellerUuid,
 		Name:        input.Name,
@@ -50,14 +51,14 @@ func (s *catalogServiceImpl) CreateProduct(sellerUuid uuid.UUID, input dto.Creat
 		return dto.ProductResponse{}, err
 	}
 
-	created, err := s.repo.CreateProduct(product)
+	created, err := s.repo.CreateProduct(ctx, product)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
 
 	// Fetch the full record so the response includes the populated Category association.
 	// CreateProduct returns the saved product but GORM doesn't preload associations on insert.
-	full, err := s.repo.GetProductByUuid(created.Uuid)
+	full, err := s.repo.GetProductByUuid(ctx, created.Uuid)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
@@ -65,16 +66,16 @@ func (s *catalogServiceImpl) CreateProduct(sellerUuid uuid.UUID, input dto.Creat
 	return toProductResponse(*full), nil
 }
 
-func (s *catalogServiceImpl) GetProduct(productUuid uuid.UUID) (dto.ProductResponse, error) {
-	product, err := s.repo.GetProductByUuid(productUuid)
+func (s *catalogServiceImpl) GetProduct(ctx context.Context, productUuid uuid.UUID) (dto.ProductResponse, error) {
+	product, err := s.repo.GetProductByUuid(ctx, productUuid)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
 	return toProductResponse(*product), nil
 }
 
-func (s *catalogServiceImpl) GetProducts(req dto.GetProductsRequest) (dto.GetProductsResponse, error) {
-	products, total, err := s.repo.GetProducts(repository.ProductFilter{
+func (s *catalogServiceImpl) GetProducts(ctx context.Context, req dto.GetProductsRequest) (dto.GetProductsResponse, error) {
+	products, total, err := s.repo.GetProducts(ctx, repository.ProductFilter{
 		SellerID:   req.SellerID,
 		CategoryID: req.CategoryID,
 		Page:       req.Page,
@@ -95,8 +96,8 @@ func (s *catalogServiceImpl) GetProducts(req dto.GetProductsRequest) (dto.GetPro
 	}, nil
 }
 
-func (s *catalogServiceImpl) UpdateProduct(sellerUuid uuid.UUID, productUuid uuid.UUID, input dto.UpdateProductRequest) (dto.ProductResponse, error) {
-	product, err := s.repo.GetProductByUuid(productUuid)
+func (s *catalogServiceImpl) UpdateProduct(ctx context.Context, sellerUuid uuid.UUID, productUuid uuid.UUID, input dto.UpdateProductRequest) (dto.ProductResponse, error) {
+	product, err := s.repo.GetProductByUuid(ctx, productUuid)
 	if err != nil {
 		return dto.ProductResponse{}, err
 	}
@@ -118,7 +119,7 @@ func (s *catalogServiceImpl) UpdateProduct(sellerUuid uuid.UUID, productUuid uui
 		return dto.ProductResponse{}, err
 	}
 
-	if err := s.repo.UpdateProduct(product); err != nil {
+	if err := s.repo.UpdateProduct(ctx, product); err != nil {
 		return dto.ProductResponse{}, err
 	}
 
@@ -126,8 +127,8 @@ func (s *catalogServiceImpl) UpdateProduct(sellerUuid uuid.UUID, productUuid uui
 	return toProductResponse(*product), nil
 }
 
-func (s *catalogServiceImpl) DeleteProduct(sellerUuid uuid.UUID, productUuid uuid.UUID) error {
-	product, err := s.repo.GetProductByUuid(productUuid)
+func (s *catalogServiceImpl) DeleteProduct(ctx context.Context, sellerUuid uuid.UUID, productUuid uuid.UUID) error {
+	product, err := s.repo.GetProductByUuid(ctx, productUuid)
 	if err != nil {
 		return err
 	}
@@ -137,14 +138,14 @@ func (s *catalogServiceImpl) DeleteProduct(sellerUuid uuid.UUID, productUuid uui
 		return errors.New("unauthorized: product does not belong to this seller")
 	}
 
-	return s.repo.DeleteProduct(product)
+	return s.repo.DeleteProduct(ctx, product)
 }
 
 // ─────────────────────────────────────────────
 // Categories
 // ─────────────────────────────────────────────
 
-func (s *catalogServiceImpl) CreateCategory(input dto.CreateCategoryRequest) (dto.CategoryResponse, error) {
+func (s *catalogServiceImpl) CreateCategory(ctx context.Context, input dto.CreateCategoryRequest) (dto.CategoryResponse, error) {
 	category := domain.Category{
 		Name:        input.Name,
 		Description: input.Description,
@@ -154,7 +155,7 @@ func (s *catalogServiceImpl) CreateCategory(input dto.CreateCategoryRequest) (dt
 		return dto.CategoryResponse{}, err
 	}
 
-	created, err := s.repo.CreateCategory(category)
+	created, err := s.repo.CreateCategory(ctx, category)
 	if err != nil {
 		return dto.CategoryResponse{}, err
 	}
@@ -162,8 +163,8 @@ func (s *catalogServiceImpl) CreateCategory(input dto.CreateCategoryRequest) (dt
 	return toCategoryResponse(created), nil
 }
 
-func (s *catalogServiceImpl) GetCategories() ([]dto.CategoryResponse, error) {
-	categories, err := s.repo.GetCategories()
+func (s *catalogServiceImpl) GetCategories(ctx context.Context) ([]dto.CategoryResponse, error) {
+	categories, err := s.repo.GetCategories(ctx)
 	if err != nil {
 		return nil, err
 	}

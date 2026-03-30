@@ -88,7 +88,7 @@ func (h *CatalogHandler) GetProducts(ctx fiber.Ctx) error {
 		req.CategoryID = &catUuid
 	}
 
-	result, err := h.svc.GetProducts(req)
+	result, err := h.svc.GetProducts(ctx, req)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "failed to fetch products",
@@ -110,7 +110,7 @@ func (h *CatalogHandler) GetProduct(ctx fiber.Ctx) error {
 		})
 	}
 
-	product, err := h.svc.GetProduct(productUuid)
+	product, err := h.svc.GetProduct(ctx, productUuid)
 	if err != nil {
 		// Surface a 404 when GORM returns record-not-found.
 		if isNotFound(err) {
@@ -139,7 +139,7 @@ func (h *CatalogHandler) CreateProduct(ctx fiber.Ctx) error {
 		})
 	}
 
-	product, err := h.svc.CreateProduct(seller.Uuid, req)
+	product, err := h.svc.CreateProduct(ctx, seller.Uuid, req)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
@@ -169,7 +169,7 @@ func (h *CatalogHandler) UpdateProduct(ctx fiber.Ctx) error {
 		})
 	}
 
-	product, err := h.svc.UpdateProduct(seller.Uuid, productUuid, req)
+	product, err := h.svc.UpdateProduct(ctx, seller.Uuid, productUuid, req)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
@@ -192,7 +192,7 @@ func (h *CatalogHandler) DeleteProduct(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := h.svc.DeleteProduct(seller.Uuid, productUuid); err != nil {
+	if err := h.svc.DeleteProduct(ctx, seller.Uuid, productUuid); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -208,7 +208,7 @@ func (h *CatalogHandler) DeleteProduct(ctx fiber.Ctx) error {
 // ─────────────────────────────────────────────
 
 func (h *CatalogHandler) GetCategories(ctx fiber.Ctx) error {
-	categories, err := h.svc.GetCategories()
+	categories, err := h.svc.GetCategories(ctx)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "failed to fetch categories",
@@ -229,7 +229,7 @@ func (h *CatalogHandler) CreateCategory(ctx fiber.Ctx) error {
 		})
 	}
 
-	category, err := h.svc.CreateCategory(req)
+	category, err := h.svc.CreateCategory(ctx, req)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),

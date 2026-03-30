@@ -32,7 +32,7 @@ func (s *CatalogGrpcServer) GetProduct(ctx context.Context, req *catalogpb.GetPr
 		return nil, status.Errorf(codes.InvalidArgument, "invalid product uuid: %v", err)
 	}
 
-	product, err := s.svc.GetProduct(productUuid)
+	product, err := s.svc.GetProduct(ctx, productUuid)
 	if err != nil {
 		// codes.NotFound → HTTP 404 equivalent.
 		return nil, status.Errorf(codes.NotFound, "product not found: %v", err)
@@ -60,7 +60,7 @@ func (s *CatalogGrpcServer) GetProducts(ctx context.Context, req *catalogpb.GetP
 		filter.SellerID = &sellerUuid
 	}
 
-	result, err := s.svc.GetProducts(filter)
+	result, err := s.svc.GetProducts(ctx, filter)
 	if err != nil {
 		// codes.Internal → HTTP 500 equivalent. Use for unexpected server-side errors.
 		return nil, status.Errorf(codes.Internal, "get products: %v", err)
@@ -91,7 +91,7 @@ func (s *CatalogGrpcServer) CreateProduct(ctx context.Context, req *catalogpb.Cr
 		return nil, status.Errorf(codes.InvalidArgument, "invalid category_id: %v", err)
 	}
 
-	product, err := s.svc.CreateProduct(sellerUuid, dto.CreateProductRequest{
+	product, err := s.svc.CreateProduct(ctx, sellerUuid, dto.CreateProductRequest{
 		Name:        req.Name,
 		Description: req.Description,
 		Price:       req.Price,
@@ -123,7 +123,7 @@ func (s *CatalogGrpcServer) UpdateProduct(ctx context.Context, req *catalogpb.Up
 	// Seller UUID is not in UpdateProductRequest — ownership is enforced via
 	// the REST handler which has the authenticated user. This gRPC method is
 	// internal-only for now; auth can be added via interceptor later.
-	product, err := s.svc.UpdateProduct(uuid.Nil, productUuid, dto.UpdateProductRequest{
+	product, err := s.svc.UpdateProduct(ctx, uuid.Nil, productUuid, dto.UpdateProductRequest{
 		Name:        req.Name,
 		Description: req.Description,
 		Price:       req.Price,
@@ -151,7 +151,7 @@ func (s *CatalogGrpcServer) DeleteProduct(ctx context.Context, req *catalogpb.De
 		return nil, status.Errorf(codes.InvalidArgument, "invalid product uuid: %v", err)
 	}
 
-	if err := s.svc.DeleteProduct(sellerUuid, productUuid); err != nil {
+	if err := s.svc.DeleteProduct(ctx, sellerUuid, productUuid); err != nil {
 		return nil, status.Errorf(codes.Internal, "delete product: %v", err)
 	}
 
