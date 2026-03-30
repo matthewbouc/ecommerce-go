@@ -39,6 +39,7 @@ type UserService interface {
 // userServiceImpl is the concrete implementation. Unexported intentionally —
 // external packages receive a UserService interface from NewUserService.
 type userServiceImpl struct {
+	db            *gorm.DB
 	userRepo      repository.UserRepository
 	bankRepo      repository.BankAccountRepository
 	cartRepo      repository.CartRepository
@@ -50,6 +51,7 @@ type userServiceImpl struct {
 }
 
 func NewUserService(
+	db *gorm.DB,
 	userRepo repository.UserRepository,
 	bankRepo repository.BankAccountRepository,
 	cartRepo repository.CartRepository,
@@ -60,6 +62,7 @@ func NewUserService(
 	catalogClient catalogpb.CatalogServiceClient,
 ) UserService {
 	return &userServiceImpl{
+		db:            db,
 		userRepo:      userRepo,
 		bankRepo:      bankRepo,
 		cartRepo:      cartRepo,
@@ -370,20 +373,27 @@ func (s *userServiceImpl) Checkout(ctx context.Context, userUuid uuid.UUID) (*dt
 		})
 	}
 
-	order, err := s.orderRepo.CreateOrder(ctx, domain.Order{
-		UserId:     user.Id,
-		Status:     domain.OrderPending,
-		TotalPrice: totalPrice,
-		Items:      orderItems,
+	var order domain.Order
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// both writes share the same connection and the same BEGIN/COMMIT.
+		txOrderRepo := repository.NewOrderRepository(tx)
+		txCartRepo := repository.NewCartRepository(tx)
+
+		var txErr error
+		order, txErr = txOrderRepo.CreateOrder(ctx, domain.Order{
+			UserId:     user.Id,
+			Status:     domain.OrderPending,
+			TotalPrice: totalPrice,
+			Items:      orderItems,
+		})
+		if txErr != nil {
+			return txErr // triggers ROLLBACK
+		}
+
+		return txCartRepo.ClearCartByUserId(ctx, user.Id) // triggers ROLLBACK on error
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	// TODO: wrap CreateOrder + ClearCartByUserId in a single DB transaction
-	// so a cart-clear failure doesn't leave the user with a stale cart.
-	if err := s.cartRepo.ClearCartByUserId(ctx, user.Id); err != nil {
-		fmt.Printf("[checkout] warning: order %s created but cart not cleared: %v\n", order.Uuid, err)
 	}
 
 	res := toOrderResponse(order)

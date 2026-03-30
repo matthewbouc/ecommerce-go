@@ -28,6 +28,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	app := rh.App
 
 	userSvc := service.NewUserService(
+		rh.DB,
 		repository.NewUserRepository(rh.DB),
 		repository.NewBankAccountRepository(rh.DB),
 		repository.NewCartRepository(rh.DB),

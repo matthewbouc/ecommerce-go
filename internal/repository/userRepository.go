@@ -60,8 +60,6 @@ func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*dom
 
 func (r *userRepository) UpdateUser(ctx context.Context, user *domain.User) error {
 	// Updates() with a struct skips zero-value fields (false, 0, "").
-	// This is intentional here — UpdateUser is used for partial updates.
-	// Use Save() instead if you ever need to explicitly clear a field to its zero value.
 	err := r.db.WithContext(ctx).Model(user).Clauses(clause.Returning{}).Where("uuid = ?", user.Uuid).Updates(user).Error
 	if err != nil {
 		return fmt.Errorf("update user %s: %w", user.Uuid, err)
