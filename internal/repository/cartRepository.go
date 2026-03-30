@@ -14,6 +14,7 @@ type CartRepository interface {
 	CreateCartItem(item domain.CartItem) (domain.CartItem, error)
 	UpdateCartItem(item *domain.CartItem) error
 	DeleteCartItemByIdAndUser(itemId uint, userId uint) error
+	ClearCartByUserId(userId uint) error
 }
 
 type cartRepository struct {
@@ -51,6 +52,13 @@ func (r *cartRepository) CreateCartItem(item domain.CartItem) (domain.CartItem, 
 func (r *cartRepository) UpdateCartItem(item *domain.CartItem) error {
 	if err := r.db.Save(item).Error; err != nil {
 		return fmt.Errorf("update cart item %d: %w", item.Id, err)
+	}
+	return nil
+}
+
+func (r *cartRepository) ClearCartByUserId(userId uint) error {
+	if err := r.db.Where("user_id = ?", userId).Delete(&domain.CartItem{}).Error; err != nil {
+		return fmt.Errorf("clear cart for user %d: %w", userId, err)
 	}
 	return nil
 }

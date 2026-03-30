@@ -35,6 +35,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 		rh.Auth,
 		rh.Config,
 		rh.SmsClient,
+		rh.CatalogClient,
 	)
 	userHandler := NewUserHandler(userSvc, rh.Auth)
 
@@ -62,6 +63,8 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 
 	pvtUser.Get("/order", userHandler.GetOrders)
 	pvtUser.Get("/order/:id", userHandler.GetOrder)
+	pvtUser.Post("/checkout", userHandler.Checkout)
+	pvtUser.Patch("/order/:id/status", userHandler.UpdateOrderStatus)
 
 	// become-seller is restricted to buyers; sellers cannot call it twice.
 	pvtUser.Post("/become-seller", rh.Auth.RequireRole(domain.BUYER), userHandler.BecomeSeller)
@@ -266,6 +269,50 @@ func (h *UserHandler) GetOrder(ctx fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "success",
 		"order":   order,
+	})
+}
+
+func (h *UserHandler) Checkout(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+
+	order, err := h.svc.Checkout(user.Uuid)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"message": "order created",
+		"order":   order,
+	})
+}
+
+func (h *UserHandler) UpdateOrderStatus(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+
+	orderUuid, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "invalid order id",
+		})
+	}
+
+	var req dto.UpdateOrderStatusRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "please provide valid input",
+		})
+	}
+
+	if err := h.svc.UpdateOrderStatus(user.Uuid, orderUuid, req.Status); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "order status updated",
 	})
 }
 

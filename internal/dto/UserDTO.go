@@ -91,6 +91,10 @@ type CartItemResponse struct {
 
 // Orders
 
+type UpdateOrderStatusRequest struct {
+	Status string `json:"status"`
+}
+
 type OrderItemResponse struct {
 	ProductId uuid.UUID `json:"productId"`
 	SellerId  uuid.UUID `json:"sellerId"`

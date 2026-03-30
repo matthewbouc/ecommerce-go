@@ -217,6 +217,35 @@
           "response": []
         },
         {
+          "name": "Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = pm.response.json();",
+                  "if (jsonData.order && jsonData.order.uuid) {",
+                  "    pm.environment.set(\"order_uuid\", jsonData.order.uuid);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/user/checkout",
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "checkout"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Get Orders",
           "request": {
             "method": "GET",
@@ -238,6 +267,28 @@
               "raw": "{{BASE_URL}}/user/order/{{order_uuid}}",
               "host": ["{{BASE_URL}}"],
               "path": ["user", "order", "{{order_uuid}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"processing\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/user/order/{{order_uuid}}/status",
+              "host": ["{{BASE_URL}}"],
+              "path": ["user", "order", "{{order_uuid}}", "status"]
             }
           },
           "response": []

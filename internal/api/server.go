@@ -21,6 +21,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -68,16 +69,26 @@ func StartServer(cfg config.AppConfig) {
 		}
 	}()
 
+	// ── gRPC client (Catalog) ──────────────────────────────────────────────
+	// Used by UserService.Checkout to validate products and get authoritative prices.
+	// TODO - update to mTLS when necessary - requires setting up certs.
+	catalogConn, err := grpc.NewClient(cfg.GrpcPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to create catalog gRPC client: %v\n", err)
+	}
+	defer catalogConn.Close()
+
 	// ── REST / HTTP server ─────────────────────────────────────────────────
 	app := fiber.New()
 
 	restHandler := &rest.RestHandler{
-		App:        app,
-		DB:         db,
-		Auth:       auth,
-		Config:     cfg,
-		SmsClient:  smsClient,
-		CatalogSvc: catalogSvc,
+		App:           app,
+		DB:            db,
+		Auth:          auth,
+		Config:        cfg,
+		SmsClient:     smsClient,
+		CatalogSvc:    catalogSvc,
+		CatalogClient: catalogpb.NewCatalogServiceClient(catalogConn),
 	}
 
 	setupRoutes(restHandler)
